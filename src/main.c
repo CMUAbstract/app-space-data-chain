@@ -118,13 +118,12 @@ void initializeHardware()
 
 void task_init()
 {
-    //LOG("init\r\n");
   
     blink0(1,1000000);
-    PRINTF("looping\n");
-  
+    PRINTF("looping\r\n");
    
     TRANSITION_TO(task_init);
+
 }
 
 INIT_FUNC(initializeHardware)
