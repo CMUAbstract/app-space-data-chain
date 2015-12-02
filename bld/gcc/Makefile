@@ -3,9 +3,9 @@ EXEC = ar.out
 OBJECTS = \
 	main.o \
 
-BOARD = wisp
-CONFIG_EDB = 1
-CONFIG_PRINTF_LIB = libedb
+BOARD = mspts430
+CONFIG_EDB = 0
+CONFIG_PRINTF_LIB = libmspconsole
 CONFIG_LIBEDB_PRINTF = eif
 
 include $(MAKER_ROOT)/Makefile.gcc
@@ -19,12 +19,15 @@ CFLAGS += \
 	-I$(WISP_BASE_ROOT)/wired \
 	-I$(LIBMSPBUILTINS_ROOT)/src/include \
 	-I$(LIBMSPMATH_ROOT)/src/include \
+	-I$(LIBMSPPRINTF_ROOT)/src/include \
 
 LFLAGS += \
 	-L$(LIBMSPMATH_ROOT)/bld/gcc \
+	-L$(LIBMSPPRINTF_ROOT)/bld/gcc \
 
 LIBS += \
 	-lwisp-base \
 	-lmspmath \
+	-lmspprintf \
 
 VPATH = ../../src
