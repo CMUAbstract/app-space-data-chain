@@ -144,22 +144,28 @@ void initializeHardware()
     
     __enable_interrupt();
 
-    PRINTF("init: initializing temperature sensor\r\n");
-    init_temp_sensor();
-
-    blink0(4,10000000); 
+    blink0(1,10000000); 
 
 }
 
+/*Initialize the sample window
+  Input channels: 
+      none
+  Output channels: 
+    { int window[TEMP_WINDOW_SIZE}
+      initialize the window 
+  Successors:
+      task_sample
+*/
 void task_init()
 {
   
     blink0(1,1000000);
-    PRINTF("looping\r\n");
+    PRINTF("initializing the window\r\n");
    
     unsigned i;
     for( i = 0; i < TEMP_WINDOW_SIZE; i++ ){
-      unsigned t = 0;
+      int t = -99;
       CHAN_OUT1(int, window[i], t, CH(task_init,task_report));
     }
    
@@ -167,26 +173,60 @@ void task_init()
 
 }
 
+/*Collect the next temperature sample
+  Input channels: 
+      none
+  Output channels: 
+    { int temp }
+      send the next temperature reading to put it in the window
+  Successors:
+      task_window
+*/
 void task_sample(){
 
   signed short temp = read_temperature_sensor();
   CHAN_OUT1(int, temp, temp, CH(task_sample, task_window));
-  TRANSITION_TO(task_report);
+  TRANSITION_TO(task_window);
 
 }
 
+
+/*Report the samples in the window
+  Input channels: 
+    { int i; }
+      self channel sends window index 
+    { int temp; }
+      receive a temperature reading from task_sample 
+  Output channels: 
+    { int window[TEMP_WINDOW_SIZE] }
+      send the next temperature reading to task_report in the window
+  Successors:
+      task_report
+*/
 void task_window(){
 
   int temp = *CHAN_IN1(int, temp, CH(task_sample, task_window));
   int i    = *CHAN_IN1(int, i, SELF_IN_CH(task_window));
-   
+
+  PRINTF("Putting %i in the window at position %i\n",temp,i); 
   CHAN_OUT1(int, window[i], temp, CH(task_window, task_report));
-  i++;
+
+  i = (i + 1) % TEMP_WINDOW_SIZE;
   CHAN_OUT1(int, i, i, SELF_OUT_CH(task_window));
+
+  TRANSITION_TO(task_report);
 
 }
 
-
+/*Report the samples in the window
+  Input channels: 
+    { int window[TEMP_WINDOW_SIZE]; }
+      task_init sends initial values of window
+      task_window sends input values that it puts in the window
+  Output channels: none
+  Successors:
+      task_sample
+*/
 void task_report(){
 
   PRINTF("[");
@@ -194,11 +234,11 @@ void task_report(){
   int temp;
   for(i = 0; i < TEMP_WINDOW_SIZE-1; i++){
     temp = *CHAN_IN2(int, window[i], CH(task_window, task_report),
-                                CH(task_init, task_report));
+                                     CH(task_init, task_report));
     PRINTF("%i, ",temp);
   }
   temp = *CHAN_IN2(int, window[TEMP_WINDOW_SIZE-1], CH(task_window, task_report),
-                              CH(task_init, task_report));
+                                                    CH(task_init, task_report));
   PRINTF("%i]\r\n",temp);
 
   blink0(5,1000000);
