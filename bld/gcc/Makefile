@@ -2,6 +2,7 @@ EXEC = ar.out
 
 OBJECTS = \
 	main.o \
+	temp_sensor.o \
 
 BOARD = mspts430
 CONFIG_EDB = 0

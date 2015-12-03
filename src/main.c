@@ -16,6 +16,7 @@
 #endif
 
 #include "pins.h"
+#include "temp_sensor.h"
 
 // #define SHOW_RESULT_ON_LEDS
 // #define SHOW_PROGRESS_ON_LEDS
@@ -53,7 +54,15 @@
 #define LED1 (1 << 0)
 #define LED2 (1 << 1)
 
+struct msg_temp {
+    CHAN_FIELD(int, temp);
+};
+
 TASK(1, task_init)
+TASK(2, task_sample)
+TASK(3, task_report)
+
+CHANNEL(task_sample, task_report, msg_temp);
 
 #if defined(SHOW_RESULT_ON_LEDS) || defined(SHOW_PROGRESS_ON_LEDS)
 static void delay(uint32_t cycles)
@@ -104,13 +113,14 @@ void initializeHardware()
 
     P1DIR |= BIT0;
    
-    blink0(4,10000000); 
+    blink0(1,10000000); 
 
     INIT_CONSOLE();
     
     __enable_interrupt();
 
-    PRINTF("init: initializing accel\r\n");
+    PRINTF("init: initializing temperature sensor\r\n");
+    init_temp_sensor();
 
     blink0(4,10000000); 
 
@@ -122,7 +132,23 @@ void task_init()
     blink0(1,1000000);
     PRINTF("looping\r\n");
    
-    TRANSITION_TO(task_init);
+    TRANSITION_TO(task_sample);
+
+}
+
+void task_sample(){
+  signed short temp = read_temperature_sensor();
+  CHAN_OUT1(int, temp, temp, CH(task_sample, task_report));
+  TRANSITION_TO(task_report);
+}
+
+void task_report(){
+
+  int temp = *CHAN_IN1(int, temp, CH(task_sample, task_report));
+
+  PRINTF("%i/10 deg C\r\n",temp);
+  blink0(3,1000000);
+  TRANSITION_TO(task_sample);
 
 }
 
