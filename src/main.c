@@ -57,12 +57,37 @@
 struct msg_temp {
     CHAN_FIELD(int, temp);
 };
+#define FIELD_INIT_msg_temp { \
+    FIELD_INITIALIZER \
+}
+
+#define TEMP_WINDOW_SIZE 10
+struct msg_temp_window{
+    CHAN_FIELD_ARRAY(int, window, TEMP_WINDOW_SIZE);
+};
+#define FIELD_INIT_msg_temp_window { \
+    FIELD_ARRAY_INITIALIZER(TEMP_WINDOW_SIZE) \
+}
+
+struct msg_index{
+    SELF_CHAN_FIELD(int, i);
+};
+#define FIELD_INIT_msg_index { \
+    SELF_FIELD_INITIALIZER \
+}
 
 TASK(1, task_init)
 TASK(2, task_sample)
-TASK(3, task_report)
+TASK(3, task_window)
+TASK(4, task_report)
 
-CHANNEL(task_sample, task_report, msg_temp);
+/*Channels to window*/
+CHANNEL(task_sample, task_window, msg_temp);
+SELF_CHANNEL(task_window, msg_index);
+
+/*Channels to report*/
+CHANNEL(task_window, task_report, msg_temp_window);
+CHANNEL(task_init, task_report, msg_temp_window);
 
 #if defined(SHOW_RESULT_ON_LEDS) || defined(SHOW_PROGRESS_ON_LEDS)
 static void delay(uint32_t cycles)
@@ -132,22 +157,51 @@ void task_init()
     blink0(1,1000000);
     PRINTF("looping\r\n");
    
+    unsigned i;
+    for( i = 0; i < TEMP_WINDOW_SIZE; i++ ){
+      unsigned t = 0;
+      CHAN_OUT1(int, window[i], t, CH(task_init,task_report));
+    }
+   
     TRANSITION_TO(task_sample);
 
 }
 
 void task_sample(){
+
   signed short temp = read_temperature_sensor();
-  CHAN_OUT1(int, temp, temp, CH(task_sample, task_report));
+  CHAN_OUT1(int, temp, temp, CH(task_sample, task_window));
   TRANSITION_TO(task_report);
+
 }
+
+void task_window(){
+
+  int temp = *CHAN_IN1(int, temp, CH(task_sample, task_window));
+  int i    = *CHAN_IN1(int, i, SELF_IN_CH(task_window));
+   
+  CHAN_OUT1(int, window[i], temp, CH(task_window, task_report));
+  i++;
+  CHAN_OUT1(int, i, i, SELF_OUT_CH(task_window));
+
+}
+
 
 void task_report(){
 
-  int temp = *CHAN_IN1(int, temp, CH(task_sample, task_report));
+  PRINTF("[");
+  unsigned i;
+  int temp;
+  for(i = 0; i < TEMP_WINDOW_SIZE-1; i++){
+    temp = *CHAN_IN2(int, window[i], CH(task_window, task_report),
+                                CH(task_init, task_report));
+    PRINTF("%i, ",temp);
+  }
+  temp = *CHAN_IN2(int, window[TEMP_WINDOW_SIZE-1], CH(task_window, task_report),
+                              CH(task_init, task_report));
+  PRINTF("%i]\r\n",temp);
 
-  PRINTF("%i/10 deg C\r\n",temp);
-  blink0(3,1000000);
+  blink0(5,1000000);
   TRANSITION_TO(task_sample);
 
 }
