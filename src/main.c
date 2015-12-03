@@ -208,7 +208,7 @@ void task_window(){
   int temp = *CHAN_IN1(int, temp, CH(task_sample, task_window));
   int i    = *CHAN_IN1(int, i, SELF_IN_CH(task_window));
 
-  PRINTF("Putting %i in the window at position %i\n",temp,i); 
+  PRINTF("Putting %i in the window at position %i\r\n",temp,i); 
   CHAN_OUT1(int, window[i], temp, CH(task_window, task_report));
 
   i = (i + 1) % TEMP_WINDOW_SIZE;

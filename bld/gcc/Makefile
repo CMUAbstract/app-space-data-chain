@@ -1,4 +1,4 @@
-EXEC = ar.out
+EXEC = spacedata.out
 
 OBJECTS = \
 	main.o \
