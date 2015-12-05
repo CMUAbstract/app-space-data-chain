@@ -54,6 +54,10 @@
 #define LED1 (1 << 0)
 #define LED2 (1 << 1)
 
+#define TEMP_WINDOW_SIZE 16
+#define TEMP_WINDOW_DIV_SHIFT 4 
+#define NUM_WINDOWS 4
+
 struct msg_temp {
     CHAN_FIELD(int, temp);
 };
@@ -61,8 +65,8 @@ struct msg_temp {
     FIELD_INITIALIZER \
 }
 
-#define TEMP_WINDOW_SIZE 10
 struct msg_temp_window{
+    CHAN_FIELD(int, avg_now);
     CHAN_FIELD_ARRAY(int, window, TEMP_WINDOW_SIZE);
 };
 #define FIELD_INIT_msg_temp_window { \
@@ -211,9 +215,17 @@ void task_window(){
   PRINTF("Putting %i in the window at position %i\r\n",temp,i); 
   CHAN_OUT1(int, window[i], temp, CH(task_window, task_report));
 
+  /*This sample fit in the window*/
   i = (i + 1) % TEMP_WINDOW_SIZE;
   CHAN_OUT1(int, i, i, SELF_OUT_CH(task_window));
 
+  if( i < TEMP_WINDOW_SIZE ){
+    int a = 0;
+    CHAN_OUT1(int, avg_now, a, CH(task_window, task_report));
+  }else{
+    int a = 1;
+    CHAN_OUT1(int, avg_now, a, CH(task_window, task_report));
+  }
   TRANSITION_TO(task_report);
 
 }
@@ -229,19 +241,34 @@ void task_window(){
 */
 void task_report(){
 
-  PRINTF("[");
-  unsigned i;
-  int temp;
-  for(i = 0; i < TEMP_WINDOW_SIZE-1; i++){
-    temp = *CHAN_IN2(int, window[i], CH(task_window, task_report),
-                                     CH(task_init, task_report));
-    PRINTF("%i, ",temp);
-  }
-  temp = *CHAN_IN2(int, window[TEMP_WINDOW_SIZE-1], CH(task_window, task_report),
-                                                    CH(task_init, task_report));
-  PRINTF("%i]\r\n",temp);
+  int avg_now = *CHAN_IN1(int, avg_now, CH(task_window, task_report));
+  if( avg_now ){
 
-  blink0(5,1000000);
+    int sum = 0;
+    PRINTF("[");
+    unsigned i;
+    int temp;
+    for(i = 0; i < TEMP_WINDOW_SIZE-1; i++){
+      temp = *CHAN_IN2(int, window[i], CH(task_window, task_report),
+                                       CH(task_init, task_report));
+      sum += temp;
+      PRINTF("%i, ",temp);
+    }
+    temp = *CHAN_IN2(int, window[TEMP_WINDOW_SIZE-1], CH(task_window, task_report),
+                                                      CH(task_init, task_report));
+    sum += temp;
+    PRINTF("%i] ",temp);
+ 
+    int avg = sum >> TEMP_WINDOW_DIV_SHIFT; 
+    PRINTF("(avg: %i\r\n",avg);
+
+    blink0(5,1000000);
+  
+  }
+  /*CHOUT is[NUM_WINDOWS]*/
+  /*Iterate over them in here, 
+    and as they are full, re-average them*/
+
   TRANSITION_TO(task_sample);
 
 }
