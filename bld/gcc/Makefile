@@ -16,6 +16,7 @@ include $(MAKER_ROOT)/Makefile.edb
 include $(MAKER_ROOT)/Makefile.chain
 
 CFLAGS += \
+	-Wno-unused-function \
 	-I$(WISP_BASE_ROOT)/Sensors \
 	-I$(WISP_BASE_ROOT)/wired \
 	-I$(LIBMSPBUILTINS_ROOT)/src/include \
