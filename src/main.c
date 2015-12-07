@@ -108,7 +108,8 @@ RET_CHANNEL(ch_average, msg_avg_out);
 typedef struct _edb_info_t{
   int averages[NUM_WINDOWS];
 } edb_info_t;
-__attribute__((section(".nv_vars"))) edb_info_t edb_info;
+
+__nv edb_info_t edb_info;
 
 #ifdef CONFIG_EDB
 static void write_app_output(uint8_t *output, unsigned *len)
