@@ -4,7 +4,6 @@ OBJECTS = \
 	main.o \
 	temp_sensor.o \
 
-BOARD = mspts430
 CONFIG_EDB = 0
 CONFIG_PRINTF_LIB = libmspconsole
 CONFIG_LIBEDB_PRINTF = eif
