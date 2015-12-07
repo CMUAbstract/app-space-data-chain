@@ -28,11 +28,10 @@
 #define NUM_WINDOWS 4
 #define WINDOW_BUFFER_SIZE 64 /*TEMP_WINDOW_SIZE * NUM_WINDOWS: */
                               /*to help the macro system figure out channeling*/
-
-struct msg_index{
+struct msg_self_index{
     SELF_CHAN_FIELD(int, i);
 };
-#define FIELD_INIT_msg_index { \
+#define FIELD_INIT_msg_self_index { \
     SELF_FIELD_INITIALIZER \
 }
 
@@ -87,7 +86,7 @@ TASK(6, task_average)
 
 /*Channels to window*/
 CHANNEL(task_sample, task_window, msg_temp);
-SELF_CHANNEL(task_window, msg_index);
+SELF_CHANNEL(task_window, msg_self_index);
 
 /*Window channels to update_window_start*/
 CHANNEL(task_window, task_update_window_start, msg_temp_window);
