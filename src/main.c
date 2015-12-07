@@ -110,6 +110,7 @@ typedef struct _edb_info_t{
 } edb_info_t;
 __attribute__((section(".nv_vars"))) edb_info_t edb_info;
 
+#ifdef CONFIG_EDB
 static void write_app_output(uint8_t *output, unsigned *len)
 {
     unsigned output_len = NUM_WINDOWS * sizeof(int); // actual app output len
@@ -117,6 +118,7 @@ static void write_app_output(uint8_t *output, unsigned *len)
     memcpy(output, &(edb_info.averages), output_len);
     *len = output_len;
 }
+#endif // CONFIG_EDB
 
 
 #ifdef false
@@ -144,6 +146,7 @@ void initializeHardware()
 
 #ifdef CONFIG_EDB
     debug_setup();
+    edb_set_app_output_cb(write_app_output);
 #endif
 
     P1DIR |= BIT0;
