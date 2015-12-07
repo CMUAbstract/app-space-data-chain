@@ -157,7 +157,7 @@ void initializeHardware()
 void task_init()
 {
   
-    PRINTF("initializing the window\r\n");
+    LOG("initializing the window\r\n");
     unsigned i;
     unsigned j;
     for( i = 0; i < NUM_WINDOWS; i++ ){
@@ -230,21 +230,21 @@ void task_average(){
     task_t *next_task = *CHAN_IN1(task_t *, next_task, CALL_CH(ch_average));
 
     int sum = 0;
-    PRINTF("[");
+    LOG("[");
     unsigned i;
     int temp;
     for(i = 0; i < TEMP_WINDOW_SIZE-1; i++){
       temp = *CHAN_IN1(int, window[i], CALL_CH(ch_average));
       sum += temp;
-      PRINTF("%i, ",temp);
+      LOG("%i, ",temp);
     }
     temp = *CHAN_IN1(int, window[TEMP_WINDOW_SIZE-1], CALL_CH(ch_average));
     sum += temp;
 
-    PRINTF("%i] ",temp);
+    LOG("%i] ",temp);
  
     int avg = sum >> TEMP_WINDOW_DIV_SHIFT; 
-    PRINTF("(avg: %i)\r\n",avg);
+    LOG("(avg: %i)\r\n",avg);
     
     CHAN_OUT1(int, average, avg, RET_CH(ch_average));
 
@@ -317,7 +317,7 @@ void task_update_window(){
     /*For pretty printing*/ 
     unsigned s; 
     for( s = 0; s < which_window + 1; s++ ){
-      PRINTF(" ");
+      LOG(" ");
     }
     
     /*Put this average in the next window, 
