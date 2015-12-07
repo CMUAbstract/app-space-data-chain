@@ -150,9 +150,6 @@ void initializeHardware()
     edb_set_app_output_cb(write_app_output);
 #endif
 
-    P1DIR |= BIT0;
-   
-
     INIT_CONSOLE();
 
     __delay_cycles(100000);
