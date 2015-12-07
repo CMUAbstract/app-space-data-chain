@@ -28,6 +28,10 @@
 #define NUM_WINDOWS 4
 #define WINDOW_BUFFER_SIZE 64 /*TEMP_WINDOW_SIZE * NUM_WINDOWS: */
                               /*to help the macro system figure out channeling*/
+struct msg_index{
+    CHAN_FIELD(int, i);
+};
+
 struct msg_self_index{
     SELF_CHAN_FIELD(int, i);
 };
@@ -85,6 +89,7 @@ TASK(5, task_update_window)
 TASK(6, task_average)
 
 /*Channels to window*/
+CHANNEL(task_init, task_window, msg_index);
 CHANNEL(task_sample, task_window, msg_temp);
 SELF_CHANNEL(task_window, msg_self_index);
 
@@ -169,7 +174,8 @@ void task_init()
     }
     int zero = 0;
     CHAN_OUT1(int, which_window, zero, CH(task_init, task_update_window));
-   
+    CHAN_OUT1(int, i, zero, CH(task_init, task_window));
+
     TRANSITION_TO(task_sample);
 
 }
@@ -207,7 +213,8 @@ void task_sample(){
 void task_window(){
 
   int temp = *CHAN_IN1(int, temp, CH(task_sample, task_window));
-  int i    = *CHAN_IN1(int, i, SELF_IN_CH(task_window));
+  int i    = *CHAN_IN2(int, i, SELF_IN_CH(task_window),
+                               CH(task_init, task_window));
 
   CHAN_OUT1(int, window[i], temp, CH(task_window, task_update_window_start));
 
