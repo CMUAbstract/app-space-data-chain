@@ -12,7 +12,7 @@
 #include <libio/log.h>
 #include <libchain/chain.h>
 
-#ifdef CONFIG_LIBEDB_PRINTF
+#ifdef CONFIG_EDB
 #include <libedb/edb.h>
 #endif
 
