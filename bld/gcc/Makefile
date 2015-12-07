@@ -4,7 +4,7 @@ OBJECTS = \
 	main.o \
 	temp_sensor.o \
 
-CONFIG_EDB = 0
+CONFIG_EDB = 1
 CONFIG_PRINTF_LIB = libmspsoftuart
 CONFIG_LIBEDB_PRINTF = eif
 
