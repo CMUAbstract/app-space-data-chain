@@ -121,16 +121,6 @@ static void write_app_output(uint8_t *output, unsigned *len)
 }
 #endif // CONFIG_EDB
 
-
-#ifdef false
-static void delay(uint32_t cycles)
-{
-    unsigned i;
-    for (i = 0; i < cycles / (1U << 15); ++i)
-        __delay_cycles(1U << 15);
-}
-#endif
-
 void initializeHardware()
 {
     WDTCTL = WDTPW | WDTHOLD;  // Stop watchdog timer
