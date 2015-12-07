@@ -147,6 +147,8 @@ void initializeHardware()
     INIT_CONSOLE();
 
     __enable_interrupt();
+
+    PRINTF("space app: curtsk %u\r\n", curctx->task->idx);
 }
 
 /*Initialize the sample window
