@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 
 #include <msp-builtins.h>
 #include <msp-math.h>
@@ -21,38 +22,6 @@
 // #define SHOW_RESULT_ON_LEDS
 // #define SHOW_PROGRESS_ON_LEDS
 // #define SHOW_BOOT_ON_LEDS
-
-// Number of samples to discard before recording training set
-#define NUM_WARMUP_SAMPLES 3
-
-#define ACCEL_WINDOW_SIZE 3
-#define MODEL_SIZE 16
-#define SAMPLE_NOISE_FLOOR 10 // TODO: made up value
-
-// Number of classifications to complete in one experiment
-#define SAMPLES_TO_COLLECT 128
-
-#define SEC_TO_CYCLES 4000000 /* 4 MHz */
-
-#define IDLE_WAIT SEC_TO_CYCLES
-
-#define IDLE_BLINKS 1
-#define IDLE_BLINK_DURATION SEC_TO_CYCLES
-#define SELECT_MODE_BLINKS  4
-#define SELECT_MODE_BLINK_DURATION  (SEC_TO_CYCLES / 5)
-#define SAMPLE_BLINKS  1
-#define SAMPLE_BLINK_DURATION  (SEC_TO_CYCLES * 2)
-#define FEATURIZE_BLINKS  2
-#define FEATURIZE_BLINK_DURATION  (SEC_TO_CYCLES * 2)
-#define CLASSIFY_BLINKS 1
-#define CLASSIFY_BLINK_DURATION (SEC_TO_CYCLES * 4)
-#define WARMUP_BLINKS 2
-#define WARMUP_BLINK_DURATION (SEC_TO_CYCLES / 2)
-#define TRAIN_BLINKS 1
-#define TRAIN_BLINK_DURATION (SEC_TO_CYCLES * 4)
-
-#define LED1 (1 << 0)
-#define LED2 (1 << 1)
 
 #define TEMP_WINDOW_SIZE 16
 #define TEMP_WINDOW_DIV_SHIFT 4 
@@ -133,44 +102,29 @@ CALL_CHANNEL(ch_average, msg_avg_in);
 RET_CHANNEL(ch_average, msg_avg_out);
 
 
-#if defined(SHOW_RESULT_ON_LEDS) || defined(SHOW_PROGRESS_ON_LEDS)
+/*This data structure conveys the averages
+  to EDB through the callback interface*/
+
+typedef struct _edb_info_t{
+  int averages[NUM_WINDOWS];
+} edb_info_t;
+__attribute__((section(".nv_vars"))) edb_info_t edb_info;
+
+static void write_app_output(uint8_t *output, unsigned *len)
+{
+    unsigned output_len = NUM_WINDOWS * sizeof(int); // actual app output len
+    if( output_len > *len ){ return; }
+    memcpy(output, &(edb_info.averages), output_len);
+    *len = output_len;
+}
+
+
+#ifdef false
 static void delay(uint32_t cycles)
 {
     unsigned i;
     for (i = 0; i < cycles / (1U << 15); ++i)
         __delay_cycles(1U << 15);
-}
-
-static void blink(unsigned count, uint32_t duration, unsigned leds)
-{
-    unsigned i;
-    for (i = 0; i < count; ++i) {
-        GPIO(PORT_LED_1, OUT) |= (leds & LED1) ? BIT(PIN_LED_1) : 0x0;
-        GPIO(PORT_LED_2, OUT) |= (leds & LED2) ? BIT(PIN_LED_2) : 0x0;
-        delay(duration / 2);
-        GPIO(PORT_LED_1, OUT) &= (leds & LED1) ? ~BIT(PIN_LED_1) : ~0x0;
-        GPIO(PORT_LED_2, OUT) &= (leds & LED2) ? ~BIT(PIN_LED_2) : ~0x0;
-        delay(duration / 2);
-    }
-}
-#endif
-
-
-#ifdef false 
-static void delay(uint32_t cycles)
-{
-    unsigned i;
-    for (i = 0; i < cycles / (1U << 15); ++i)
-        __delay_cycles(1U << 15);
-}
-
-static void blink0(unsigned count, uint32_t duration){
-    unsigned i;
-    for (i = 0; i < count; ++i) {
-        P1OUT ^= BIT0;
-        delay(duration);
-    }
-
 }
 #endif
 
@@ -339,9 +293,11 @@ void task_update_window(){
   int avg = *CHAN_IN1(int, average, RET_CH(ch_average));
  
 
-
   int which_window = *CHAN_IN2(int, which_window, CH(task_init,task_update_window),
                                                   SELF_IN_CH(task_update_window));
+ 
+  /*Update the continuously updated average buffer with this average*/ 
+  edb_info.averages[which_window] = avg;
 
   /*Get the index for this window that we need to update*/
   int win_i = *CHAN_IN2(int, win_i[which_window], CH(task_init,task_update_window), 
