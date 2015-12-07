@@ -152,11 +152,7 @@ void initializeHardware()
 
     INIT_CONSOLE();
 
-    __delay_cycles(100000);
-    
     __enable_interrupt();
-
-
 }
 
 /*Initialize the sample window
