@@ -130,8 +130,17 @@ static void delay(uint32_t cycles)
 
 void initializeHardware()
 {
+    WDTCTL = WDTPW | WDTHOLD;  // Stop watchdog timer
 
-    WISP_init();
+#if defined(BOARD_EDB) || defined(BOARD_WISP) || defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
+    PM5CTL0 &= ~LOCKLPM5;	   // Enable GPIO pin settings
+#endif
+
+#if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
+    CSCTL0_H = 0xA5;
+    CSCTL1 = DCOFSEL_6; //8MHz
+    CSCTL3 = DIVA_0 + DIVS_0 + DIVM_0;
+#endif
 
 #ifdef CONFIG_EDB
     debug_setup();
