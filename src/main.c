@@ -29,6 +29,62 @@
 #define WINDOW_BUFFER_SIZE 64 /*TEMP_WINDOW_SIZE * NUM_WINDOWS: */
                               /*to help the macro system figure out channeling*/
 
+#define WINDOW_SIZE 16
+#define SAMPLE_WINDOW_SIZE 112
+#define SAMPLE_SIZE 7
+
+#define SAMPGET(samp,coor) (SAMPLE_SIZE*samp + coor)
+#define CGET(coor) (coor)
+
+#define TEMP 0
+#define GX 1
+#define GY 2
+#define GZ 3
+#define MX 4
+#define MY 5
+#define MZ 6
+
+struct msg_sample{
+    CHAN_FIELD_ARRAY(int, sample, SAMPLE_SIZE);
+};
+#define FIELD_INIT_msg_sample { \
+    FIELD_ARRAY_INITIALIZER \
+}
+
+struct msg_sample_avg_in{
+  CHAN_FIELD(task_t *, next_task);
+  CHAN_FIELD_ARRAY(int, window, SAMPLE_WINDOW_SIZE);
+};
+#define FIELD_INIT_sample_avg_in { \
+    FIELD_INITIALIZER \
+    FIELD_ARRAY_INITIALIZER(TEMP_WINDOW_SIZE) \
+}
+
+struct msg_sample_avg_out{
+  CHAN_FIELD_ARRAY(int, average, SAMPLE_SIZE);
+};
+#define FIELD_INIT_sample_avg_out { \
+    FIELD_ARRAY_INITIALIZER(SAMPLE_SIZE) \
+}
+
+struct msg_sample_window{
+  CHAN_FIELD_ARRAY(int, window, SAMPLE_WINDOW_SIZE);
+};
+#define FIELD_INIT_msg_reading { \
+    FIELD_ARRAY_INITIALIZER(SAMPLE_WINDOW_SIZE) \
+}
+
+struct msg_sample_windows{
+    SELF_CHAN_FIELD(int, which_window);
+    SELF_CHAN_FIELD_ARRAY(int, windows, SAMPLE_WINDOW_SIZE);
+    SELF_CHAN_FIELD_ARRAY(int, win_i, TEMP_WINDOW_SIZE);
+};
+#define FIELD_INIT_msg_sample_windows { \
+    SELF_FIELD_INITIALIZER, \
+    SELF_FIELD_ARRAY_INITIALIZER(WINDOW_BUFFER_SIZE), \
+    SELF_FIELD_ARRAY_INITIALIZER(TEMP_WINDOW_SIZE) \
+}
+
 struct msg_index{
     SELF_CHAN_FIELD(int, i);
 };
@@ -86,20 +142,20 @@ TASK(5, task_update_window)
 TASK(6, task_average)
 
 /*Channels to window*/
-CHANNEL(task_sample, task_window, msg_temp);
+CHANNEL(task_sample, task_window, msg_sample);
 SELF_CHANNEL(task_window, msg_index);
 
 /*Window channels to update_window_start*/
-CHANNEL(task_window, task_update_window_start, msg_temp_window);
-CHANNEL(task_update_window, task_update_window_start, msg_temp_window);
+CHANNEL(task_window, task_update_window_start, msg_sample_window);
+CHANNEL(task_update_window, task_update_window_start, msg_sample_window);
 
 /*Windows channels to task_update_window*/
-SELF_CHANNEL(task_update_window, msg_temp_windows);
-CHANNEL(task_init, task_update_window, msg_temp_windows);
+SELF_CHANNEL(task_update_window, msg_sample_windows);
+CHANNEL(task_init, task_update_window, msg_sample_windows);
 
 /*Average takes a window and produces an average*/
-CALL_CHANNEL(ch_average, msg_avg_in);
-RET_CHANNEL(ch_average, msg_avg_out);
+CALL_CHANNEL(ch_average, msg_sample_avg_in);
+RET_CHANNEL(ch_average, msg_sample_avg_out);
 
 
 /*This data structure conveys the averages
@@ -191,7 +247,27 @@ void task_init()
 void task_sample(){
 
   signed short temp = read_temperature_sensor();
-  CHAN_OUT1(int, temp, temp, CH(task_sample, task_window));
+
+  int ind = CGET(TEMP); 
+  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
+
+  ind = CGET(GX);
+  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
+  
+  ind = CGET(GY);
+  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
+  
+  ind = CGET(GZ);
+  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
+  
+  ind = CGET(MX);
+  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
+  
+  ind = CGET(MY);
+  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
+  
+  ind = CGET(MZ);
+  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
   TRANSITION_TO(task_window);
 
 }
@@ -211,10 +287,27 @@ void task_sample(){
 */
 void task_window(){
 
-  int temp = *CHAN_IN1(int, temp, CH(task_sample, task_window));
+  int temp = *CHAN_IN1(int, sample[CGET(TEMP)], CH(task_sample, task_window));
+
+  int gx = *CHAN_IN1(int, sample[CGET(GX)], CH(task_sample, task_window));
+  int gy = *CHAN_IN1(int, sample[CGET(GY)], CH(task_sample, task_window));
+  int gz = *CHAN_IN1(int, sample[CGET(GZ)], CH(task_sample, task_window));
+
+  int mx = *CHAN_IN1(int, sample[CGET(MX)], CH(task_sample, task_window));
+  int my = *CHAN_IN1(int, sample[CGET(MY)], CH(task_sample, task_window));
+  int mz = *CHAN_IN1(int, sample[CGET(MZ)], CH(task_sample, task_window));
+
   int i    = *CHAN_IN1(int, i, SELF_IN_CH(task_window));
 
-  CHAN_OUT1(int, window[i], temp, CH(task_window, task_update_window_start));
+  CHAN_OUT1(int, window[SAMPGET(0,TEMP)], temp, CH(task_window, task_update_window_start));
+
+  CHAN_OUT1(int, window[SAMPGET(0,GX)], gx, CH(task_window, task_update_window_start));
+  CHAN_OUT1(int, window[SAMPGET(0,GY)], gy, CH(task_window, task_update_window_start));
+  CHAN_OUT1(int, window[SAMPGET(0,GZ)], gz, CH(task_window, task_update_window_start));
+
+  CHAN_OUT1(int, window[SAMPGET(0,MX)], mx, CH(task_window, task_update_window_start));
+  CHAN_OUT1(int, window[SAMPGET(0,MY)], my, CH(task_window, task_update_window_start));
+  CHAN_OUT1(int, window[SAMPGET(0,MZ)], mz, CH(task_window, task_update_window_start));
 
   int next_i = (i + 1) % TEMP_WINDOW_SIZE;
   CHAN_OUT1(int, i, next_i, SELF_OUT_CH(task_window));
@@ -233,24 +326,27 @@ void task_average(){
 
     task_t *next_task = *CHAN_IN1(task_t *, next_task, CALL_CH(ch_average));
 
-    int sum = 0;
-    PRINTF("[");
     unsigned i;
-    int temp;
-    for(i = 0; i < TEMP_WINDOW_SIZE-1; i++){
-      temp = *CHAN_IN1(int, window[i], CALL_CH(ch_average));
-      sum += temp;
-      PRINTF("%i, ",temp);
+    int sum[SAMPLE_SIZE];
+    int avg[SAMPLE_SIZE];
+    for( i = 0; i < SAMPLE_SIZE; i++ ){
+      sum[i] = 0;
+      avg[i] = 0;
     }
-    temp = *CHAN_IN1(int, window[TEMP_WINDOW_SIZE-1], CALL_CH(ch_average));
-    sum += temp;
 
-    PRINTF("%i] ",temp);
- 
-    int avg = sum >> TEMP_WINDOW_DIV_SHIFT; 
-    PRINTF("(avg: %i)\r\n",avg);
-    
-    CHAN_OUT1(int, average, avg, RET_CH(ch_average));
+    int val;
+    unsigned j;
+    for(i = 0; i < WINDOW_SIZE; i++){
+      for(j = 0; j < SAMPLE_SIZE; j++){
+        val = *CHAN_IN1(int, window[SAMPGET(i,j)], CALL_CH(ch_average));
+        sum[j] += val;
+      }
+    }
+
+    for(i = 0; i < SAMPLE_SIZE; i++){
+      avg[i] = sum[i] >> TEMP_WINDOW_DIV_SHIFT; 
+      CHAN_OUT1(int, average[i], avg[i], RET_CH(ch_average));
+    }
 
     transition_to(next_task);
 
@@ -290,14 +386,21 @@ void task_update_window_start(){
 void task_update_window(){
 
   /*Get the average and window ID from the averaging call*/
-  int avg = *CHAN_IN1(int, average, RET_CH(ch_average));
+  int avg[SAMPLE_SIZE];
+  avg[TEMP] = *CHAN_IN1(int, average[TEMP], RET_CH(ch_average));
+  avg[GX] = *CHAN_IN1(int, average[GX], RET_CH(ch_average));
+  avg[GY] = *CHAN_IN1(int, average[GY], RET_CH(ch_average));
+  avg[GZ] = *CHAN_IN1(int, average[GZ], RET_CH(ch_average));
+  avg[MX] = *CHAN_IN1(int, average[MX], RET_CH(ch_average));
+  avg[MY] = *CHAN_IN1(int, average[MY], RET_CH(ch_average));
+  avg[MZ] = *CHAN_IN1(int, average[MZ], RET_CH(ch_average));
  
 
   int which_window = *CHAN_IN2(int, which_window, CH(task_init,task_update_window),
                                                   SELF_IN_CH(task_update_window));
  
   /*Update the continuously updated average buffer with this average*/ 
-  edb_info.averages[which_window] = avg;
+  //edb_info.averages[which_window] = avg;
 
   /*Get the index for this window that we need to update*/
   int win_i = *CHAN_IN2(int, win_i[which_window], CH(task_init,task_update_window), 
@@ -315,6 +418,8 @@ void task_update_window(){
   int next_window = (which_window + 1) % NUM_WINDOWS;
   CHAN_OUT1(int, which_window, next_window, SELF_OUT_CH(task_update_window));
 
+
+  /*BRANDON:TODO: rewrite tehse lines to use the expanded data format*/
   if( next_window != 0 ){
   /*Not the last window*/
  
