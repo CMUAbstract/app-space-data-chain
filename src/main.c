@@ -428,7 +428,15 @@ void task_update_window(){
   /*Use window ID and win index to self-chan the average, saving it*/
   //WINGET(which_window,win_i,TEMP)
   int ind = which_window * TEMP_WINDOW_SIZE + win_i;
-  CHAN_OUT1(int, windows[ind], avg, SELF_OUT_CH(task_update_window));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,TEMP)], avg[TEMP], SELF_OUT_CH(task_update_window));
+
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,GX)], avg[GX], SELF_OUT_CH(task_update_window));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,GY)], avg[GY], SELF_OUT_CH(task_update_window));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,GZ)], avg[GZ], SELF_OUT_CH(task_update_window));
+  
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,MX)], avg[MX], SELF_OUT_CH(task_update_window));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,MY)], avg[MY], SELF_OUT_CH(task_update_window));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,MZ)], avg[MZ], SELF_OUT_CH(task_update_window));
 
   /*Send self the next win_i for this window*/
   int next_wini = (win_i + 1) % TEMP_WINDOW_SIZE;
