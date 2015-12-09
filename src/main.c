@@ -162,6 +162,8 @@ void initializeHardware()
 */
 void task_init()
 {
+    /* Init data buffer that will contain averages to be fetched by EDB */
+    memset(&edb_info, 0, sizeof(edb_info));
   
     LOG("initializing the window\r\n");
     unsigned i;
