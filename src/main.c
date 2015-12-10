@@ -238,6 +238,22 @@ void task_init()
 
 }
 
+void read_gyro(signed short *x,
+               signed short *y,
+               signed short *z){
+  *x = 10; 
+  *y = 20; 
+  *z = 30; 
+}
+
+void read_mag(signed short *x,
+              signed short *y,
+              signed short *z){
+  *x = 40; 
+  *y = 50; 
+  *z = 60; 
+}
+
 /*Collect the next temperature sample
   Input channels: 
       none
@@ -249,28 +265,29 @@ void task_init()
 */
 void task_sample(){
 
-  signed short temp = read_temperature_sensor();
+  signed short val = read_temperature_sensor();
 
   int ind = TEMP; 
-  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[ind], val, CH(task_sample, task_window));
 
-  ind = GX;
-  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
+  signed short gx;
+  signed short gy;
+  signed short gz;
+  read_gyro(&gx,&gy,&gz);
+
+  CHAN_OUT1(int, sample[GX], gx, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[GY], gy, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[GZ], gz, CH(task_sample, task_window));
+
+
+  signed short mx;
+  signed short my;
+  signed short mz;
+  read_mag(&mx,&my,&mz);
   
-  ind = GY;
-  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
-  
-  ind = GZ;
-  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
-  
-  ind = MX;
-  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
-  
-  ind = MY;
-  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
-  
-  ind = MZ;
-  CHAN_OUT1(int, sample[ind], temp, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[MX], mx, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[MY], my, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[MZ], mz, CH(task_sample, task_window));
   TRANSITION_TO(task_window);
 
 }
@@ -402,6 +419,10 @@ void task_update_window_start(){
 }
 
 
+void printsamp(int t, int gx, int gy, int gz, int mx, int my, int mz){
+  PRINTF("{T:%i,G:{%i,%i,%i},M:{%i,%i,%i}}",t,gx,gy,gz,mx,my,mz);
+}
+
 void task_update_window(){
 
   /*Get the average and window ID from the averaging call*/
@@ -427,7 +448,6 @@ void task_update_window(){
 
   /*Use window ID and win index to self-chan the average, saving it*/
   //WINGET(which_window,win_i,TEMP)
-  int ind = which_window * TEMP_WINDOW_SIZE + win_i;
   CHAN_OUT1(int, windows[WINGET(which_window,win_i,TEMP)], avg[TEMP], SELF_OUT_CH(task_update_window));
 
   CHAN_OUT1(int, windows[WINGET(which_window,win_i,GX)], avg[GX], SELF_OUT_CH(task_update_window));
@@ -456,6 +476,7 @@ void task_update_window(){
     for( s = 0; s < which_window + 1; s++ ){
       PRINTF(" ");
     }
+    PRINTF("[");
     
     /*Put this average in the next window, 
       then re-average that window*/
@@ -464,24 +485,51 @@ void task_update_window(){
 
       if( i == win_i ){
         /*window[win_i] that goes back to task_update_window_start gets the avg*/
+ 
+        printsamp(avg[TEMP],avg[GX],avg[GY],avg[GZ],avg[MX],avg[MY],avg[MZ]);
 
-        CHAN_OUT1(int, window[i], avg, CH(task_update_window, task_update_window_start));
+        CHAN_OUT1(int, window[SAMPGET(i,TEMP)], avg[TEMP], CH(task_update_window, task_update_window_start));
+        
+        CHAN_OUT1(int, window[SAMPGET(i,GX)], avg[GX], CH(task_update_window, task_update_window_start));
+        CHAN_OUT1(int, window[SAMPGET(i,GY)], avg[GY], CH(task_update_window, task_update_window_start));
+        CHAN_OUT1(int, window[SAMPGET(i,GZ)], avg[GZ], CH(task_update_window, task_update_window_start));
+
+        CHAN_OUT1(int, window[SAMPGET(i,MX)], avg[MX], CH(task_update_window, task_update_window_start));
+        CHAN_OUT1(int, window[SAMPGET(i,MY)], avg[MY], CH(task_update_window, task_update_window_start));
+        CHAN_OUT1(int, window[SAMPGET(i,MZ)], avg[MZ], CH(task_update_window, task_update_window_start));
+
 
       }else{
         /*window[i != win_i] that goes back to task_update_window_start gets self's window[i]*/
 
-        /*Compute the index, reusing ind*/ 
-        ind = which_window * TEMP_WINDOW_SIZE + i;
-  
         /*In the value from the self channel*/
-        int val = *CHAN_IN1(int, windows[ind], SELF_IN_CH(task_update_window));
-        
+        int temp = *CHAN_IN1(int, windows[WINGET(which_window,i,TEMP)], SELF_IN_CH(task_update_window));
+
+        int gx = *CHAN_IN1(int, windows[WINGET(which_window,i,GX)], SELF_IN_CH(task_update_window));
+        int gy = *CHAN_IN1(int, windows[WINGET(which_window,i,GY)], SELF_IN_CH(task_update_window));
+        int gz = *CHAN_IN1(int, windows[WINGET(which_window,i,GZ)], SELF_IN_CH(task_update_window));
+
+        int mx = *CHAN_IN1(int, windows[WINGET(which_window,i,MX)], SELF_IN_CH(task_update_window));
+        int my = *CHAN_IN1(int, windows[WINGET(which_window,i,MY)], SELF_IN_CH(task_update_window));
+        int mz = *CHAN_IN1(int, windows[WINGET(which_window,i,MZ)], SELF_IN_CH(task_update_window));
+
+        printsamp(temp,gx,gy,gz,mx,my,mz);
+
         /*Out the value back to task_update_window_start for averaging*/
-        CHAN_OUT1(int, window[i], val, CH(task_update_window, task_update_window_start));
+        CHAN_OUT1(int, window[SAMPGET(i,TEMP)], temp, CH(task_update_window, task_update_window_start));
+        
+        CHAN_OUT1(int, window[SAMPGET(i,GX)], gx, CH(task_update_window, task_update_window_start));
+        CHAN_OUT1(int, window[SAMPGET(i,GY)], gy, CH(task_update_window, task_update_window_start));
+        CHAN_OUT1(int, window[SAMPGET(i,GZ)], gz, CH(task_update_window, task_update_window_start));
+
+        CHAN_OUT1(int, window[SAMPGET(i,MX)], mx, CH(task_update_window, task_update_window_start));
+        CHAN_OUT1(int, window[SAMPGET(i,MY)], my, CH(task_update_window, task_update_window_start));
+        CHAN_OUT1(int, window[SAMPGET(i,MZ)], mz, CH(task_update_window, task_update_window_start));
 
       }
 
     }
+    PRINTF("]\r\n");
 
     TRANSITION_TO(task_update_window_start);
 
