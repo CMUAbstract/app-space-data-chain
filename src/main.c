@@ -155,7 +155,6 @@ void i2c_setup(void) {
   *   (UCB0SIMO/UCB0SDA, UCB0SOMI/UCB0SCL)
   */
 
-  PRINTF("i2c init\r\n");
 
   GPIO_setAsPeripheralModuleFunctionInputPin(
     GPIO_PORT_P1,
@@ -164,7 +163,6 @@ void i2c_setup(void) {
   );
 
 
-  PRINTF("setting up params init\r\n");
 
   EUSCI_B_I2C_initMasterParam param = {0};
   param.selectClockSource = EUSCI_B_I2C_CLOCKSOURCE_SMCLK;
@@ -175,7 +173,6 @@ void i2c_setup(void) {
 
   EUSCI_B_I2C_initMaster(EUSCI_B0_BASE, &param);
   
-  PRINTF("done with init\r\n");
 
 }
 
@@ -223,10 +220,8 @@ void initializeHardware()
 
     i2c_setup();
 
-    PRINTF("mag init\r\n");
     magnetometer_init();
 
-    PRINTF("mag init\r\n");
     gyro_init();
 
     
@@ -272,10 +267,10 @@ void read_gyro(int *x,
                int *y,
                int *z){
   gyro_t co;
-  //gyro_read(&co);
-  *x = 0;//co.x; 
-  *y = 0;//co.y; 
-  *z = 0;//co.z; 
+  gyro_read(&co);
+  *x = co.x; 
+  *y = co.y; 
+  *z = co.z; 
 }
 
 

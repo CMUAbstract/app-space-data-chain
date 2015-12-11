@@ -11,11 +11,8 @@ volatile unsigned char gyroId = 0;
 
 void gyro_init(void) {
 
-  PRINTF("Setting up gyro\r\n");
 
   EUSCI_B_I2C_setSlaveAddress(EUSCI_B0_BASE, GYRO_SLAVE_ADDRESS);
-
-  PRINTF("slave gyro\r\n");
 
   EUSCI_B_I2C_enable(EUSCI_B0_BASE);
   
@@ -35,8 +32,6 @@ void gyro_init(void) {
 
   EUSCI_B_I2C_masterReceiveMultiByteStop(EUSCI_B0_BASE);
   
-  PRINTF("gyro ID: %x\r\n",gyroId);
-
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
 
   EUSCI_B_I2C_setMode(EUSCI_B0_BASE, EUSCI_B_I2C_TRANSMIT_MODE);
@@ -49,7 +44,7 @@ void gyro_init(void) {
 
   EUSCI_B_I2C_disable(EUSCI_B0_BASE);
 
-  PRINTF("[gyro] Gyro set up. Gyro.WhoAmI: %x\n", gyroId);
+  //PRINTF("[gyro] Gyro set up. Gyro.WhoAmI: %x\n", gyroId);
 
 }
 
@@ -84,6 +79,6 @@ void gyro_read(gyro_t* coordinates) {
   coordinates->x = (rawGyroData[XH] << 8) | rawGyroData[XL];
   coordinates->z = (rawGyroData[YH] << 8) | rawGyroData[YL];
   coordinates->y = (rawGyroData[ZH] << 8) | rawGyroData[ZL];
-  PRINTF("Gyro temp: %i\r\n",(rawGyroData[TEMPH] << 8) | rawGyroData[TEMPL]);
+  //PRINTF("Gyro temp: %i\r\n",(rawGyroData[TEMPH] << 8) | rawGyroData[TEMPL]);
 
 }

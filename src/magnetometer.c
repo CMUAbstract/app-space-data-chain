@@ -12,7 +12,6 @@ volatile unsigned char magnetometerId[3] = { 0, 0, 0 };
 void magnetometer_init(void) {
   int i;
 
-  PRINTF("FFFFFF\r\n");
   EUSCI_B_I2C_setSlaveAddress(EUSCI_B0_BASE, MAGNETOMETER_SLAVE_ADDRESS);
 
   EUSCI_B_I2C_enable(EUSCI_B0_BASE);
@@ -66,7 +65,7 @@ void magnetometer_init(void) {
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
 
   EUSCI_B_I2C_disable(EUSCI_B0_BASE);
-  PRINTF("ID: %c %c %c\r\n",magnetometerId[0],magnetometerId[1],magnetometerId[2]);
+  //PRINTF("ID: %c %c %c\r\n",magnetometerId[0],magnetometerId[1],magnetometerId[2]);
 
   /*
    * 8,000,000hz * (1 second / 1000 ms) * 6ms = 48000
