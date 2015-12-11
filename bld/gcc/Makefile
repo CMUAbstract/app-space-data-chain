@@ -4,6 +4,7 @@ OBJECTS = \
 	main.o \
 	temp_sensor.o \
 	magnetometer.o \
+	gyro.o \
 
 BOARD = mspts430
 CONFIG_EDB = 0
