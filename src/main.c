@@ -18,6 +18,8 @@
 
 #include "pins.h"
 #include "temp_sensor.h"
+#include "mspware/driverlib.h"
+#include "magnetometer.h"
 
 // #define SHOW_RESULT_ON_LEDS
 // #define SHOW_PROGRESS_ON_LEDS
@@ -144,6 +146,41 @@ typedef struct _edb_info_t{
 
 __nv edb_info_t edb_info;
 
+
+void i2c_setup(void) {
+  /*
+  * Select Port 1
+  * Set Pin 6, 7 to input Secondary Module Function:
+  *   (UCB0SIMO/UCB0SDA, UCB0SOMI/UCB0SCL)
+  */
+
+  PRINTF("i2c init\r\n");
+
+  GPIO_setAsPeripheralModuleFunctionInputPin(
+    GPIO_PORT_P1,
+    GPIO_PIN6 + GPIO_PIN7,
+    GPIO_SECONDARY_MODULE_FUNCTION
+  );
+
+
+  PRINTF("setting up params init\r\n");
+
+  EUSCI_B_I2C_initMasterParam param = {0};
+  param.selectClockSource = EUSCI_B_I2C_CLOCKSOURCE_SMCLK;
+  param.i2cClk = CS_getSMCLK();
+  param.dataRate = EUSCI_B_I2C_SET_DATA_RATE_400KBPS;
+  param.byteCounterThreshold = 0;
+  param.autoSTOPGeneration = EUSCI_B_I2C_NO_AUTO_STOP;
+
+  PRINTF("clock: %n\r\n",CS_getSMCLK());
+
+  EUSCI_B_I2C_initMaster(EUSCI_B0_BASE, &param);
+  
+  PRINTF("done with init\r\n");
+
+}
+
+
 #ifdef CONFIG_EDB
 static void write_app_output(uint8_t *output, unsigned *len)
 {
@@ -185,6 +222,8 @@ void initializeHardware()
 
     __enable_interrupt();
 
+    i2c_setup();
+    magnetometer_init();
 
 }
 
@@ -200,6 +239,7 @@ void initializeHardware()
 void task_init()
 {
  
+    PRINTF("Space Data App Initializing\r\n");
     unsigned i;
     int zero = 0;
     for( i = 0; i < NUM_WINDOWS; i++ ){
@@ -218,7 +258,6 @@ void task_init()
     CHAN_OUT1(int, which_window, zero, CH(task_init, task_update_window));
     CHAN_OUT1(int, i, zero, CH(task_init, task_window));
    
-    PRINTF("heading to sample\r\n");
     TRANSITION_TO(task_sample);
 
 }
@@ -231,12 +270,15 @@ void read_gyro(signed short *x,
   *z = 30; 
 }
 
-void read_mag(signed short *x,
-              signed short *y,
-              signed short *z){
-  *x = 40; 
-  *y = 50; 
-  *z = 60; 
+
+void read_mag(signed *x,
+              signed *y,
+              signed *z){
+  magnet_t co;
+  magnetometer_read(&co);
+  *x = co.x; 
+  *y = co.y; 
+  *z = co.z; 
 }
 
 /*Collect the next temperature sample
@@ -267,14 +309,13 @@ void task_sample(){
   CHAN_OUT1(int, sample[GZ], gz, CH(task_sample, task_window));
 
 
-  signed short mx;
-  signed short my;
-  signed short mz;
-  read_mag(&mx,&my,&mz);
+
+  magnet_t rd;
+  read_mag(&(rd.x),&(rd.y),&(rd.z));
   
-  CHAN_OUT1(int, sample[MX], mx, CH(task_sample, task_window));
-  CHAN_OUT1(int, sample[MY], my, CH(task_sample, task_window));
-  CHAN_OUT1(int, sample[MZ], mz, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[MX], rd.x, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[MY], rd.y, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[MZ], rd.z, CH(task_sample, task_window));
   TRANSITION_TO(task_window);
 
 }
