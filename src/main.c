@@ -103,7 +103,6 @@ TASK(3, task_window)
 TASK(4, task_update_window_start)
 TASK(5, task_update_window)
 TASK(6, task_update_proxy)
-TASK(7, task_average)
 
 /*Channels to window*/
 CHANNEL(task_sample, task_window, msg_sample);
@@ -123,9 +122,6 @@ CHANNEL(task_update_window,task_update_proxy, msg_sample_windows);
 CHANNEL(task_init, task_update_window, msg_sample_windows);
 CHANNEL(task_init, task_update_proxy, msg_sample_windows);
 
-/*Average takes a window and produces an average*/
-CALL_CHANNEL(ch_average, msg_sample_avg_in);
-RET_CHANNEL(ch_average, msg_sample_avg_out);
 
 
 /*This data structure conveys the averages
@@ -184,8 +180,6 @@ void initializeHardware()
 */
 void task_init()
 {
- 
-    
  
     unsigned i;
     int zero = 0;
@@ -324,40 +318,6 @@ void task_window(){
 
 }
 
-
-void task_average(){
-    
-    
-
-    PRINTF("Entered avg\r\n");
-    task_t *next_task = *CHAN_IN1(task_t *, next_task, CALL_CH(ch_average));
-
-    unsigned i;
-    int sum[SAMPLE_SIZE];
-    int avg[SAMPLE_SIZE];
-    for( i = 0; i < SAMPLE_SIZE; i++ ){
-      sum[i] = 0;
-      avg[i] = 0;
-    }
-
-    int val;
-    unsigned j;
-    for(i = 0; i < WINDOW_SIZE; i++){
-      for(j = 0; j < SAMPLE_SIZE; j++){
-        val = *CHAN_IN1(int, window[SAMPGET(i,j)], CALL_CH(ch_average));
-        sum[j] += val;
-      }
-    }
-
-    for(i = 0; i < SAMPLE_SIZE; i++){
-      avg[i] = (sum[i]) >> WINDOW_DIV_SHIFT; 
-      CHAN_OUT1(int, average[i], avg[i], RET_CH(ch_average));
-    }
-
-    transition_to(next_task);
-
-}
-
 void printsamp(int t, int gx, int gy, int gz, int mx, int my, int mz){
   PRINTF("{T:%i,G:{%i,%i,%i},M:{%i,%i,%i}}",t,gx,gy,gz,mx,my,mz);
 }
@@ -373,11 +333,6 @@ void printsamp(int t, int gx, int gy, int gz, int mx, int my, int mz){
       task_sample
 */
 void task_update_window_start(){
-
-    
-  /*average needs to know the successor task*/
-  //task_t *next_task = TASK_REF(task_update_window);
-  //CHAN_OUT1(task_t *, next_task, next_task, CALL_CH(ch_average));
 
   unsigned i; 
   unsigned samp; 
@@ -496,34 +451,29 @@ void task_update_window(){
 
   /*Use window ID and win index to self-chan the average, saving it*/
   //WINGET(which_window,win_i,TEMP)
-  CHAN_OUT1(int, windows[which_window*SAMPLE_WINDOW_SIZE + win_i*SAMPLE_SIZE + TEMP], avg[TEMP], CH(task_update_window,task_update_proxy));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,TEMP)], avg[TEMP], CH(task_update_window,task_update_proxy));
 
-  CHAN_OUT1(int, windows[which_window*SAMPLE_WINDOW_SIZE + win_i*SAMPLE_SIZE + GX], avg[GX], CH(task_update_window,task_update_proxy));
-  CHAN_OUT1(int, windows[which_window*SAMPLE_WINDOW_SIZE + win_i*SAMPLE_SIZE + GY], avg[GY], CH(task_update_window,task_update_proxy));
-  CHAN_OUT1(int, windows[which_window*SAMPLE_WINDOW_SIZE + win_i*SAMPLE_SIZE + GZ], avg[GZ], CH(task_update_window,task_update_proxy));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,GX)], avg[GX], CH(task_update_window,task_update_proxy));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,GY)], avg[GY], CH(task_update_window,task_update_proxy));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,GZ)], avg[GZ], CH(task_update_window,task_update_proxy));
   
-  CHAN_OUT1(int, windows[which_window*SAMPLE_WINDOW_SIZE + win_i*SAMPLE_SIZE + MX], avg[MX], CH(task_update_window,task_update_proxy));
-  CHAN_OUT1(int, windows[which_window*SAMPLE_WINDOW_SIZE + win_i*SAMPLE_SIZE + MY], avg[MY], CH(task_update_window,task_update_proxy));
-  CHAN_OUT1(int, windows[which_window*SAMPLE_WINDOW_SIZE + win_i*SAMPLE_SIZE + MZ], avg[MZ], CH(task_update_window,task_update_proxy));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,MX)], avg[MX], CH(task_update_window,task_update_proxy));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,MY)], avg[MY], CH(task_update_window,task_update_proxy));
+  CHAN_OUT1(int, windows[WINGET(which_window,win_i,MZ)], avg[MZ], CH(task_update_window,task_update_proxy));
   /*Send self the next win_i for this window*/
   int next_wini = (win_i + 1) % WINDOW_SIZE;
-  //CHAN_OUT1(int, win_i[which_window], next_wini, SELF_OUT_CH(task_update_window));
   CHAN_OUT1(int, win_i[which_window], next_wini, CH(task_update_window,task_update_proxy));
 
   /*Determine the next window to average*/
   int next_window = (which_window + 1) % NUM_WINDOWS;
-  //CHAN_OUT1(int, which_window, next_window, SELF_OUT_CH(task_update_window));
   CHAN_OUT1(int, which_window, next_window, CH(task_update_window,task_update_proxy));
 
-  if( next_window != 0 ){
-  /*Not the last window*/
- 
     /*For pretty printing*/ 
     unsigned s; 
-    for( s = 0; s < which_window + 1; s++ ){
+    for( s = 0; s < which_window; s++ ){
       PRINTF(" ");
     }
-    PRINTF("[");
+    PRINTF("%i[",which_window);
     
     /*Put this average in the next window, 
       then re-average that window*/
@@ -587,16 +537,15 @@ void task_update_window(){
     }
     PRINTF("]\r\n");
 
+  if(next_window != 0){
+    /*Not the last window: average the next one*/
     TRANSITION_TO(task_update_window_start);
-
   }else{
-  /*The last window: go back to sampling*/
-
+    /*The last window: go back to sampling*/
+    PRINTF("----------------------\r\n");
     /*Done with all windows!*/
     TRANSITION_TO(task_sample);
-
   }
-
 }
 
 INIT_FUNC(initializeHardware)
