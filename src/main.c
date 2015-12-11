@@ -223,6 +223,8 @@ void initializeHardware()
     __enable_interrupt();
 
     i2c_setup();
+
+    PRINTF("mag init\r\n");
     magnetometer_init();
 
 }
