@@ -4,21 +4,28 @@
 #include "gyro.h"
 #include "mspware/driverlib.h"
 
-const unsigned int gyroBytes = 6;
+const unsigned int gyroBytes = 8;
 const unsigned int gyroIdBytes = 1;
-volatile unsigned char rawGyroData[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+volatile unsigned char rawGyroData[8] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 volatile unsigned char gyroId = 0;
 
 void gyro_init(void) {
-  int i;
+
+  PRINTF("Setting up gyro\r\n");
 
   EUSCI_B_I2C_setSlaveAddress(EUSCI_B0_BASE, GYRO_SLAVE_ADDRESS);
 
+  PRINTF("slave gyro\r\n");
+
   EUSCI_B_I2C_enable(EUSCI_B0_BASE);
+  
+  while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
 
   EUSCI_B_I2C_setMode(EUSCI_B0_BASE, EUSCI_B_I2C_TRANSMIT_MODE);
 
   EUSCI_B_I2C_masterSendSingleByte(EUSCI_B0_BASE, GYRO_ID_ADDRESS);
+  
+  while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
 
   EUSCI_B_I2C_setMode(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_MODE);
 
@@ -27,6 +34,8 @@ void gyro_init(void) {
   gyroId = EUSCI_B_I2C_masterReceiveSingle(EUSCI_B0_BASE);
 
   EUSCI_B_I2C_masterReceiveMultiByteStop(EUSCI_B0_BASE);
+  
+  PRINTF("gyro ID: %x\r\n",gyroId);
 
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
 
@@ -57,7 +66,7 @@ void gyro_read(gyro_t* coordinates) {
 
   EUSCI_B_I2C_setMode(EUSCI_B0_BASE, EUSCI_B_I2C_TRANSMIT_MODE);
 
-  EUSCI_B_I2C_masterSendSingleByte(EUSCI_B0_BASE, GYRO_XH_ADDRESS);
+  EUSCI_B_I2C_masterSendSingleByte(EUSCI_B0_BASE, GYRO_TEMPH_ADDRESS);
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
   
   EUSCI_B_I2C_setMode(EUSCI_B0_BASE, EUSCI_B_I2C_RECEIVE_MODE);
@@ -75,5 +84,6 @@ void gyro_read(gyro_t* coordinates) {
   coordinates->x = (rawGyroData[XH] << 8) | rawGyroData[XL];
   coordinates->z = (rawGyroData[YH] << 8) | rawGyroData[YL];
   coordinates->y = (rawGyroData[ZH] << 8) | rawGyroData[ZL];
+  PRINTF("Gyro temp: %i\r\n",(rawGyroData[TEMPH] << 8) | rawGyroData[TEMPL]);
 
 }

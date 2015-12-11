@@ -20,6 +20,7 @@
 #include "temp_sensor.h"
 #include "mspware/driverlib.h"
 #include "magnetometer.h"
+#include "gyro.h"
 
 // #define SHOW_RESULT_ON_LEDS
 // #define SHOW_PROGRESS_ON_LEDS
@@ -172,8 +173,6 @@ void i2c_setup(void) {
   param.byteCounterThreshold = 0;
   param.autoSTOPGeneration = EUSCI_B_I2C_NO_AUTO_STOP;
 
-  PRINTF("clock: %n\r\n",CS_getSMCLK());
-
   EUSCI_B_I2C_initMaster(EUSCI_B0_BASE, &param);
   
   PRINTF("done with init\r\n");
@@ -227,6 +226,11 @@ void initializeHardware()
     PRINTF("mag init\r\n");
     magnetometer_init();
 
+    PRINTF("mag init\r\n");
+    gyro_init();
+
+    
+
 }
 
 /*Initialize the sample window
@@ -264,18 +268,20 @@ void task_init()
 
 }
 
-void read_gyro(signed short *x,
-               signed short *y,
-               signed short *z){
-  *x = 10; 
-  *y = 20; 
-  *z = 30; 
+void read_gyro(int *x,
+               int *y,
+               int *z){
+  gyro_t co;
+  //gyro_read(&co);
+  *x = 0;//co.x; 
+  *y = 0;//co.y; 
+  *z = 0;//co.z; 
 }
 
 
-void read_mag(signed *x,
-              signed *y,
-              signed *z){
+void read_mag(int *x,
+              int *y,
+              int *z){
   magnet_t co;
   magnetometer_read(&co);
   *x = co.x; 
@@ -301,23 +307,22 @@ void task_sample(){
   int ind = TEMP; 
   CHAN_OUT1(int, sample[ind], val, CH(task_sample, task_window));
 
-  signed short gx;
-  signed short gy;
-  signed short gz;
-  read_gyro(&gx,&gy,&gz);
-
-  CHAN_OUT1(int, sample[GX], gx, CH(task_sample, task_window));
-  CHAN_OUT1(int, sample[GY], gy, CH(task_sample, task_window));
-  CHAN_OUT1(int, sample[GZ], gz, CH(task_sample, task_window));
-
-
-
-  magnet_t rd;
-  read_mag(&(rd.x),&(rd.y),&(rd.z));
   
-  CHAN_OUT1(int, sample[MX], rd.x, CH(task_sample, task_window));
-  CHAN_OUT1(int, sample[MY], rd.y, CH(task_sample, task_window));
-  CHAN_OUT1(int, sample[MZ], rd.z, CH(task_sample, task_window));
+  gyro_t gd;
+  read_gyro(&(gd.x),&(gd.y),&(gd.z));
+
+  CHAN_OUT1(int, sample[GX], gd.x, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[GY], gd.y, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[GZ], gd.z, CH(task_sample, task_window));
+
+
+
+  magnet_t md;
+  read_mag(&(md.x),&(md.y),&(md.z));
+  
+  CHAN_OUT1(int, sample[MX], md.x, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[MY], md.y, CH(task_sample, task_window));
+  CHAN_OUT1(int, sample[MZ], md.z, CH(task_sample, task_window));
   TRANSITION_TO(task_window);
 
 }
