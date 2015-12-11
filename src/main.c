@@ -22,6 +22,7 @@
 // #define SHOW_RESULT_ON_LEDS
 // #define SHOW_PROGRESS_ON_LEDS
 // #define SHOW_BOOT_ON_LEDS
+#define BOARD_SPRITE_APP
 
 #define WINDOW_DIV_SHIFT 2
 #define NUM_WINDOWS 4
@@ -127,11 +128,23 @@ CHANNEL(task_init, task_update_proxy, msg_sample_windows);
 /*This data structure conveys the averages
   to EDB through the callback interface*/
 
+typedef struct _samp_t{
+  int temp;
+  int gx;
+  int gy;
+  int gz;
+  int mx;
+  int my;
+  int mz;
+} samp_t;
+  
 typedef struct _edb_info_t{
-  int averages[NUM_WINDOWS];
+  samp_t averages[NUM_WINDOWS];
 } edb_info_t;
-__attribute__((section(".nv_vars"))) edb_info_t edb_info;
 
+__nv edb_info_t edb_info;
+
+#ifdef CONFIG_EDB
 static void write_app_output(uint8_t *output, unsigned *len)
 {
     unsigned output_len = NUM_WINDOWS * sizeof(int); // actual app output len
@@ -139,7 +152,7 @@ static void write_app_output(uint8_t *output, unsigned *len)
     memcpy(output, &(edb_info.averages), output_len);
     *len = output_len;
 }
-
+#endif
 
 static void delay(uint32_t cycles)
 {
@@ -151,19 +164,25 @@ static void delay(uint32_t cycles)
 void initializeHardware()
 {
 
-    WISP_init();
+    WDTCTL = WDTPW | WDTHOLD;  // Stop watchdog timer
+
+#if defined(BOARD_EDB) || defined(BOARD_WISP) || defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
+    PM5CTL0 &= ~LOCKLPM5;	   // Enable GPIO pin settings
+#endif
+
+#if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
+    CSCTL0_H = 0xA5;
+    CSCTL1 = DCOFSEL_6; //8MHz
+    CSCTL3 = DIVA_0 + DIVS_0 + DIVM_0;
+#endif
 
 #ifdef CONFIG_EDB
     debug_setup();
+    edb_set_app_output_cb(write_app_output);
 #endif
-
-    P1DIR |= BIT0;
-   
 
     INIT_CONSOLE();
 
-    __delay_cycles(100000);
-    
     __enable_interrupt();
 
 
@@ -443,7 +462,13 @@ void task_update_window(){
                                                   CH(task_update_proxy,task_update_window));
 
   /*Update the continuously updated average buffer with this average*/ 
-  //edb_info.averages[which_window] = avg;
+  edb_info.averages[which_window].temp = avg[TEMP];
+  edb_info.averages[which_window].gx   = avg[GX];
+  edb_info.averages[which_window].gy   = avg[GY];
+  edb_info.averages[which_window].gz   = avg[GZ];
+  edb_info.averages[which_window].mx   = avg[MX];
+  edb_info.averages[which_window].my   = avg[MY];
+  edb_info.averages[which_window].mz   = avg[MZ];
 
   /*Get the index for this window that we need to update*/
   int win_i = *CHAN_IN2(int, win_i[which_window], CH(task_init,task_update_window), 
@@ -469,11 +494,13 @@ void task_update_window(){
   CHAN_OUT1(int, which_window, next_window, CH(task_update_window,task_update_proxy));
 
     /*For pretty printing*/ 
+    /*
     unsigned s; 
     for( s = 0; s < which_window; s++ ){
       PRINTF(" ");
     }
     PRINTF("%i[",which_window);
+    */
     
     /*Put this average in the next window, 
       then re-average that window*/
@@ -483,8 +510,8 @@ void task_update_window(){
       if( i == win_i ){
         /*window[win_i] that goes back to task_update_window_start gets the avg*/
  
-        PRINTF("W");
-        printsamp(avg[TEMP],avg[GX],avg[GY],avg[GZ],avg[MX],avg[MY],avg[MZ]);
+        //PRINTF("W");
+        //printsamp(avg[TEMP],avg[GX],avg[GY],avg[GZ],avg[MX],avg[MY],avg[MZ]);
 
         CHAN_OUT1(int, window[SAMPGET(i,TEMP)], avg[TEMP], CH(task_update_window, task_update_window_start));
         
@@ -500,7 +527,7 @@ void task_update_window(){
       }else{
         /*window[i != win_i] that goes back to task_update_window_start gets self's window[i]*/
 
-        PRINTF("O");
+        //PRINTF("O");
         /*In the value from the self channel*/
         int temp = *CHAN_IN2(int, windows[WINGET(which_window,i,TEMP)], CH(task_init,task_update_window),
                                                                         CH(task_update_proxy,task_update_window));
@@ -519,7 +546,7 @@ void task_update_window(){
         int mz = *CHAN_IN2(int, windows[WINGET(which_window,i,MZ)], CH(task_init,task_update_window),
                                                                     CH(task_update_proxy,task_update_window));
 
-        printsamp(temp,gx,gy,gz,mx,my,mz);
+        //printsamp(temp,gx,gy,gz,mx,my,mz);
 
         /*Out the value back to task_update_window_start for averaging*/
         CHAN_OUT1(int, window[SAMPGET(i,TEMP)], temp, CH(task_update_window, task_update_window_start));
@@ -535,14 +562,25 @@ void task_update_window(){
       }
 
     }
-    PRINTF("]\r\n");
+    //PRINTF("]\r\n");
 
   if(next_window != 0){
     /*Not the last window: average the next one*/
     TRANSITION_TO(task_update_window_start);
   }else{
     /*The last window: go back to sampling*/
-    PRINTF("----------------------\r\n");
+    unsigned w;
+    for( w = 0; w < NUM_WINDOWS; w++ ){
+      printsamp(edb_info.averages[w].temp,
+                edb_info.averages[w].gx,
+                edb_info.averages[w].gy,
+                edb_info.averages[w].gz,
+                edb_info.averages[w].mx,
+                edb_info.averages[w].my,
+                edb_info.averages[w].mz);
+      PRINTF("\r\n");
+    }
+    PRINTF("-------\r\n");
     /*Done with all windows!*/
     TRANSITION_TO(task_sample);
   }
