@@ -553,16 +553,18 @@ void task_update_window(){
                                                   CH(task_update_proxy,task_update_window));
 
   /*Update the continuously updated average buffer with this average*/ 
-#define MAG_DOWNSAMPLE (12 - 8)  // sensor resolution: 12-bit
-#define GYRO_DOWNSAMPLE (16 - 8) // sensor resolution: 16-bit
+
+  /* downsample to signed 8-bit int: 7-bit of downsampled data */
+#define MAG_DOWNSAMPLE (1 << (12 - 7))  // sensor resolution: 12-bit
+#define GYRO_DOWNSAMPLE (1 << (16 - 7)) // sensor resolution: 16-bit
 
   edb_info.averages[which_window].temp = avg[TEMP] / 10; // to degrees
-  edb_info.averages[which_window].gx   = avg[GX] << GYRO_DOWNSAMPLE;
-  edb_info.averages[which_window].gy   = avg[GY] << GYRO_DOWNSAMPLE;
-  edb_info.averages[which_window].gz   = avg[GZ] << GYRO_DOWNSAMPLE;
-  edb_info.averages[which_window].mx   = avg[MX] << MAG_DOWNSAMPLE;
-  edb_info.averages[which_window].my   = avg[MY] << MAG_DOWNSAMPLE;
-  edb_info.averages[which_window].mz   = avg[MZ] << MAG_DOWNSAMPLE;
+  edb_info.averages[which_window].gx   = avg[GX] / GYRO_DOWNSAMPLE;
+  edb_info.averages[which_window].gy   = avg[GY] / GYRO_DOWNSAMPLE;
+  edb_info.averages[which_window].gz   = avg[GZ] / GYRO_DOWNSAMPLE;
+  edb_info.averages[which_window].mx   = avg[MX] / MAG_DOWNSAMPLE;
+  edb_info.averages[which_window].my   = avg[MY] / MAG_DOWNSAMPLE;
+  edb_info.averages[which_window].mz   = avg[MZ] / MAG_DOWNSAMPLE;
 
   /*Get the index for this window that we need to update*/
   int win_i = *CHAN_IN2(int, win_i[which_window], CH(task_init,task_update_window), 
