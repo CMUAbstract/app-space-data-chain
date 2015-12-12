@@ -191,7 +191,7 @@ void i2c_setup(void) {
 #ifdef CONFIG_EDB
 static void write_app_output(uint8_t *output, unsigned *len)
 {
-    unsigned output_len = NUM_WINDOWS * sizeof(int); // actual app output len
+    unsigned output_len = sizeof(edb_info.averages); // actual app output len
     if( output_len > *len ) {
         PRINTF("output app data buf too small: need %u have %u\r\n",
                 output_len, *len);
