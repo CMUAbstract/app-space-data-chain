@@ -52,7 +52,7 @@ void gyro_init(void) {
 
   EUSCI_B_I2C_disable(EUSCI_B0_BASE);
 
-  //PRINTF("[gyro] Gyro set up. Gyro.WhoAmI: %x\n", gyroId);
+  LOG("[gyro] Gyro set up. Gyro.WhoAmI: %x\r\n", gyroId);
 
 }
 
@@ -87,6 +87,6 @@ void gyro_read(gyro_t* coordinates) {
   coordinates->x = (rawGyroData[XH] << 8) | rawGyroData[XL];
   coordinates->z = (rawGyroData[YH] << 8) | rawGyroData[YL];
   coordinates->y = (rawGyroData[ZH] << 8) | rawGyroData[ZL];
-  //PRINTF("Gyro temp: %i\r\n",(rawGyroData[TEMPH] << 8) | rawGyroData[TEMPL]);
+  LOG("Gyro temp: %i\r\n",(rawGyroData[TEMPH] << 8) | rawGyroData[TEMPL]);
 
 }
