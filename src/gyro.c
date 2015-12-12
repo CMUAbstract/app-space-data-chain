@@ -36,6 +36,14 @@ void gyro_init(void) {
 
   EUSCI_B_I2C_setMode(EUSCI_B0_BASE, EUSCI_B_I2C_TRANSMIT_MODE);
 
+#if 0 // Command to put gyroscope into low-power idle/sleep mode
+  EUSCI_B_I2C_masterSendStart(EUSCI_B0_BASE);
+  EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, GYRO_PWRMGT_ADDRESS);
+  EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, GYRO_PWRMGT_VALUE);
+  EUSCI_B_I2C_masterSendMultiByteStop(EUSCI_B0_BASE);
+  while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
+#endif
+
   EUSCI_B_I2C_masterSendStart(EUSCI_B0_BASE);
   EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, GYRO_DLPF_FS_ADDRESS);
   EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, GYRO_DLPF_FS_VALUE);

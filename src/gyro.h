@@ -10,6 +10,9 @@
 #define GYRO_DLPF_FS_ADDRESS 0x16 /*"full-scale" config register*/
 #define GYRO_DLPF_FS_VALUE 0x18 /*magic value for "full-scale" meas., req'd to run*/
 
+#define GYRO_PWRMGT_ADDRESS 0x3E /* power management register */
+#define GYRO_PWRMGT_VALUE   0x40 /* SLEEP */
+
 /*Data registers*/
 #define GYRO_TEMPH_ADDRESS 0x1B
 #define GYRO_TEMPL_ADDRESS 0x1C
