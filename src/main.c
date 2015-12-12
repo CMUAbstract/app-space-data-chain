@@ -145,7 +145,7 @@ CHANNEL(task_init, task_update_proxy, msg_sample_windows);
   to EDB through the callback interface*/
 
 typedef struct _samp_t{
-  int temp;
+  int8_t temp;
   int gx;
   int gy;
   int gz;
@@ -553,7 +553,7 @@ void task_update_window(){
                                                   CH(task_update_proxy,task_update_window));
 
   /*Update the continuously updated average buffer with this average*/ 
-  edb_info.averages[which_window].temp = avg[TEMP];
+  edb_info.averages[which_window].temp = (int8_t)avg[TEMP];
   edb_info.averages[which_window].gx   = avg[GX];
   edb_info.averages[which_window].gy   = avg[GY];
   edb_info.averages[which_window].gz   = avg[GZ];
