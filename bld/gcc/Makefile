@@ -10,7 +10,7 @@ CONFIG_EDB = 1
 CONFIG_PRINTF_LIB = libmspsoftuart
 CONFIG_LIBEDB_PRINTF = eif
 
-LIBMSPWARE = /home/vagrant/cvsandbox/chained-apps/space-data/src
+LIBMSPWARE = ../../src
 
 include $(MAKER_ROOT)/Makefile.gcc
 include $(MAKER_ROOT)/Makefile.board
