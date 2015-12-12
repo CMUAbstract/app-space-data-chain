@@ -1,7 +1,4 @@
 #include <msp430.h>
-
-#include "temp_sensor.h"
-
 #define TF_TEMP_15_30 2982
 #define TF_TEMP_15_85 3515
 #define TLVStruct(x)  *(&(((int*)TLV_ADC12_1_TAG_)[x+1]))
@@ -62,13 +59,11 @@ unsigned int get_calibrated_adc () {
 
 }
 
-int8_t read_temperature_sensor() {
+signed short read_temperature_sensor() {
 
-  signed int temp = get_calibrated_adc();
+  signed short temp = get_calibrated_adc();
 
-  temp /= 10; // to degrees 
-
-  return (int8_t)temp;
+  return temp;
 
 }
 

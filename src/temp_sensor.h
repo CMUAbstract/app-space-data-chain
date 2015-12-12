@@ -1,7 +1,5 @@
-#include <stdint.h>
-
 /*read_temperature_sensor() reports the current temperature
-  in degrees Celsius
+  in degrees Celsius * 10 (so we get a decimal point)
 */
-int8_t read_temperature_sensor();
+signed short read_temperature_sensor();
 void init_temp_sensor();
