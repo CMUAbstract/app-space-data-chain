@@ -22,6 +22,8 @@
 // the workround of undef'ing 'OUT' (see pin_assign.h)
 #ifdef CONFIG_EDB
 #include <libedb/edb.h>
+#else
+#define WATCHPOINT(...)
 #endif
 
 // #define SHOW_RESULT_ON_LEDS
@@ -133,7 +135,11 @@ CHANNEL(task_update_window,task_update_proxy, msg_sample_windows);
 CHANNEL(task_init, task_update_window, msg_sample_windows);
 CHANNEL(task_init, task_update_proxy, msg_sample_windows);
 
-
+#define WATCHPOINT_BOOT                 0
+#define WATCHPOINT_SAMPLE               1
+#define WATCHPOINT_WINDOW               2
+#define WATCHPOINT_UPDATE_WINDOW_START  3
+//#define WATCHPOINT_UPDATE_WINDOW       4
 
 /*This data structure conveys the averages
   to EDB through the callback interface*/
@@ -253,6 +259,8 @@ void initializeHardware()
 
     __enable_interrupt();
 
+    WATCHPOINT(WATCHPOINT_BOOT);
+
     i2c_setup();
 
     magnetometer_init();
@@ -332,6 +340,8 @@ void read_mag(int *x,
 void task_sample(){
   
   
+  WATCHPOINT(WATCHPOINT_SAMPLE);
+
 
   signed short val = read_temperature_sensor();
 
@@ -373,7 +383,7 @@ void task_sample(){
 */
 void task_window(){
 
-  
+  WATCHPOINT(WATCHPOINT_WINDOW);
 
   int i = *CHAN_IN2(int, i, SELF_IN_CH(task_window),
                             CH(task_init, task_window));
@@ -431,6 +441,8 @@ void printsamp(int t, int gx, int gy, int gz, int mx, int my, int mz){
       task_sample
 */
 void task_update_window_start(){
+
+  WATCHPOINT(WATCHPOINT_UPDATE_WINDOW_START);
 
   unsigned i; 
   unsigned samp; 
