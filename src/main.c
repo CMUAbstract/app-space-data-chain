@@ -184,7 +184,12 @@ void i2c_setup(void) {
 static void write_app_output(uint8_t *output, unsigned *len)
 {
     unsigned output_len = NUM_WINDOWS * sizeof(int); // actual app output len
-    if( output_len > *len ){ return; }
+    if( output_len > *len ) {
+        PRINTF("output app data buf too small: need %u have %u\r\n",
+                output_len, *len);
+        return;
+    }
+
     memcpy(output, &(edb_info.averages), output_len);
     *len = output_len;
 }
