@@ -190,6 +190,19 @@ static void write_app_output(uint8_t *output, unsigned *len)
         return;
     }
 
+#if VERBOSE > 0
+    int i;
+    BLOCK_LOG_BEGIN();
+    BLOCK_LOG("handling EDB request for app output:\r\n");
+    for (i = 0; i < output_len; ++i) {
+        BLOCK_LOG("0x%02x ", *(((uint8_t *)&edb_info.averages) + i));
+        if (((i + 1) & (8 - 1)) == 0)
+            BLOCK_LOG("\r\n");
+    }
+    BLOCK_LOG("\r\n");
+    BLOCK_LOG_END();
+#endif
+
     memcpy(output, &(edb_info.averages), output_len);
     *len = output_len;
 }
