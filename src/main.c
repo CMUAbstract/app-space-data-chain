@@ -12,7 +12,7 @@
 #include <libio/log.h>
 #include <libchain/chain.h>
 
-#ifdef CONFIG_LIBEDB_PRINTF
+#ifdef CONFIG_EDB
 #include <libedb/edb.h>
 #endif
 
@@ -98,7 +98,12 @@ struct msg_index{
     SELF_FIELD_INITIALIZER \
 }
 
-
+struct msg_self_index{
+    SELF_CHAN_FIELD(int, i);
+};
+#define FIELD_INIT_msg_self_index { \
+    SELF_FIELD_INITIALIZER \
+}
 
 
 TASK(1, task_init)
@@ -112,7 +117,7 @@ TASK(6, task_update_proxy)
 CHANNEL(task_sample, task_window, msg_sample);
 
 CHANNEL(task_init, task_window, msg_index);
-SELF_CHANNEL(task_window, msg_index);
+SELF_CHANNEL(task_window, msg_self_index);
 
 /*Window channels to update_window_start*/
 CHANNEL(task_init, task_update_window_start, msg_sample_window);
@@ -147,7 +152,6 @@ typedef struct _edb_info_t{
 
 __nv edb_info_t edb_info;
 
-
 void i2c_setup(void) {
   /*
   * Select Port 1
@@ -176,7 +180,6 @@ void i2c_setup(void) {
 
 }
 
-
 #ifdef CONFIG_EDB
 static void write_app_output(uint8_t *output, unsigned *len)
 {
@@ -185,7 +188,7 @@ static void write_app_output(uint8_t *output, unsigned *len)
     memcpy(output, &(edb_info.averages), output_len);
     *len = output_len;
 }
-#endif
+#endif // CONFIG_EDB
 
 static void delay(uint32_t cycles)
 {
@@ -196,11 +199,23 @@ static void delay(uint32_t cycles)
 
 void initializeHardware()
 {
-
     WDTCTL = WDTPW | WDTHOLD;  // Stop watchdog timer
 
 #if defined(BOARD_EDB) || defined(BOARD_WISP) || defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
     PM5CTL0 &= ~LOCKLPM5;	   // Enable GPIO pin settings
+#endif
+
+#if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
+    P1DIR |= BIT0 | BIT1 | BIT2;
+    P1OUT &= ~(BIT0 | BIT1 | BIT2);
+    P2DIR |= BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7;
+    P2OUT &= ~(BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7);
+    P3DIR |= BIT6 | BIT7;
+    P3OUT &= ~(BIT6 | BIT7);
+    P4DIR |= BIT0 | BIT1 | BIT4;
+    P4OUT &= ~(BIT0 | BIT1 | BIT4);
+    PJDIR |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5;
+    PJOUT |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5;
 #endif
 
 #if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
@@ -224,8 +239,7 @@ void initializeHardware()
 
     gyro_init();
 
-    
-
+    LOG("space app: curtsk %u\r\n", curctx->task->idx);
 }
 
 /*Initialize the sample window
@@ -239,8 +253,11 @@ void initializeHardware()
 */
 void task_init()
 {
- 
-    PRINTF("Space Data App Initializing\r\n");
+    LOG("Space Data App Initializing\r\n");
+
+    /* Init data buffer that will contain averages to be fetched by EDB */
+    memset(&edb_info, 0, sizeof(edb_info));
+  
     unsigned i;
     int zero = 0;
     for( i = 0; i < NUM_WINDOWS; i++ ){
@@ -258,9 +275,8 @@ void task_init()
 
     CHAN_OUT1(int, which_window, zero, CH(task_init, task_update_window));
     CHAN_OUT1(int, i, zero, CH(task_init, task_window));
-   
-    TRANSITION_TO(task_sample);
 
+    TRANSITION_TO(task_sample);
 }
 
 void read_gyro(int *x,
@@ -381,7 +397,7 @@ void task_window(){
 }
 
 void printsamp(int t, int gx, int gy, int gz, int mx, int my, int mz){
-  PRINTF("{T:%i,G:{%i,%i,%i},M:{%i,%i,%i}}",t,gx,gy,gz,mx,my,mz);
+  LOG("{T:%i,G:{%i,%i,%i},M:{%i,%i,%i}}",t,gx,gy,gz,mx,my,mz);
 }
 
 
@@ -540,9 +556,9 @@ void task_update_window(){
     /*
     unsigned s; 
     for( s = 0; s < which_window; s++ ){
-      PRINTF(" ");
+      LOG(" ");
     }
-    PRINTF("%i[",which_window);
+    LOG("%i[",which_window);
     */
     
     /*Put this average in the next window, 
@@ -553,7 +569,7 @@ void task_update_window(){
       if( i == win_i ){
         /*window[win_i] that goes back to task_update_window_start gets the avg*/
  
-        //PRINTF("W");
+        //LOG("W");
         //printsamp(avg[TEMP],avg[GX],avg[GY],avg[GZ],avg[MX],avg[MY],avg[MZ]);
 
         CHAN_OUT1(int, window[SAMPGET(i,TEMP)], avg[TEMP], CH(task_update_window, task_update_window_start));
@@ -570,7 +586,7 @@ void task_update_window(){
       }else{
         /*window[i != win_i] that goes back to task_update_window_start gets self's window[i]*/
 
-        //PRINTF("O");
+        //LOG("O");
         /*In the value from the self channel*/
         int temp = *CHAN_IN2(int, windows[WINGET(which_window,i,TEMP)], CH(task_init,task_update_window),
                                                                         CH(task_update_proxy,task_update_window));
@@ -605,7 +621,7 @@ void task_update_window(){
       }
 
     }
-    //PRINTF("]\r\n");
+    //LOG("]\r\n");
 
   if(next_window != 0){
     /*Not the last window: average the next one*/
@@ -621,9 +637,9 @@ void task_update_window(){
                 edb_info.averages[w].mx,
                 edb_info.averages[w].my,
                 edb_info.averages[w].mz);
-      PRINTF("\r\n");
+      LOG("\r\n");
     }
-    PRINTF("-------\r\n");
+    LOG("-------\r\n");
     /*Done with all windows!*/
     TRANSITION_TO(task_sample);
   }
