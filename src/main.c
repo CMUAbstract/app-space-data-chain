@@ -129,6 +129,19 @@ void initializeHardware()
 {
     WDTCTL = WDTPW | WDTHOLD;  // Stop watchdog timer
 
+#if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
+    P1DIR |= BIT0 | BIT1 | BIT2;
+    P1OUT &= ~(BIT0 | BIT1 | BIT2);
+    P2DIR |= BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7;
+    P2OUT &= ~(BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7);
+    P3DIR |= BIT6 | BIT7;
+    P3OUT &= ~(BIT6 | BIT7);
+    P4DIR |= BIT0 | BIT1 | BIT4;
+    P4OUT &= ~(BIT0 | BIT1 | BIT4);
+    PJDIR |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5;
+    PJOUT |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5;
+#endif
+
 #if defined(BOARD_EDB) || defined(BOARD_WISP) || defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
     PM5CTL0 &= ~LOCKLPM5;	   // Enable GPIO pin settings
 #endif
