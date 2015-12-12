@@ -12,15 +12,17 @@
 #include <libio/log.h>
 #include <libchain/chain.h>
 
-#ifdef CONFIG_EDB
-#include <libedb/edb.h>
-#endif
-
 #include "pins.h"
 #include "temp_sensor.h"
 #include "mspware/driverlib.h"
 #include "magnetometer.h"
 #include "gyro.h"
+
+// Must be after any header that includes mps430.h due to
+// the workround of undef'ing 'OUT' (see pin_assign.h)
+#ifdef CONFIG_EDB
+#include <libedb/edb.h>
+#endif
 
 // #define SHOW_RESULT_ON_LEDS
 // #define SHOW_PROGRESS_ON_LEDS
