@@ -96,11 +96,8 @@ struct msg_sample_windows{
 }
 
 struct msg_index{
-    SELF_CHAN_FIELD(int, i);
+    CHAN_FIELD(int, i);
 };
-#define FIELD_INIT_msg_index { \
-    SELF_FIELD_INITIALIZER \
-}
 
 struct msg_self_index{
     SELF_CHAN_FIELD(int, i);
