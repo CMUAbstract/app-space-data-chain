@@ -415,7 +415,6 @@ void task_window(){
 
   /*Every TEMP_WINDOW_SIZE samples, compute a new average*/
   if( next_i == 0 ){
-    delay(8000000);    
     TRANSITION_TO(task_update_window_start);
   }else{
     TRANSITION_TO(task_sample);
