@@ -57,43 +57,26 @@
 struct msg_sample{
     CHAN_FIELD_ARRAY(int, sample, SAMPLE_SIZE);
 };
-#define FIELD_INIT_msg_sample { \
-    FIELD_ARRAY_INITIALIZER(SAMPLE_SIZE) \
-}
 
 struct msg_sample_avg_in{
   CHAN_FIELD(task_t *, next_task);
   CHAN_FIELD_ARRAY(int, window, SAMPLE_WINDOW_SIZE);
 };
-#define FIELD_INIT_sample_avg_in { \
-    FIELD_INITIALIZER \
-    FIELD_ARRAY_INITIALIZER(SAMPLE_WINDOW_SIZE) \
-}
 
 struct msg_sample_avg_out{
   CHAN_FIELD_ARRAY(int, average, SAMPLE_SIZE);
 };
-#define FIELD_INIT_sample_avg_out { \
-    FIELD_ARRAY_INITIALIZER(SAMPLE_SIZE) \
-}
 
 struct msg_sample_window{
   CHAN_FIELD_ARRAY(int, window, SAMPLE_WINDOW_SIZE);
 };
-#define FIELD_INIT_msg_reading { \
-    FIELD_ARRAY_INITIALIZER(SAMPLE_WINDOW_SIZE) \
-}
+
 
 struct msg_sample_windows{
     CHAN_FIELD(int, which_window);
     CHAN_FIELD_ARRAY(int, win_i, WINDOW_SIZE);
     CHAN_FIELD_ARRAY(int, windows, WIN_WINDOW_SIZE);
 };
-#define FIELD_INIT_msg_sample_windows { \
-    FIELD_INITIALIZER, \
-    FIELD_ARRAY_INITIALIZER(WINDOW_SIZE), \
-    FIELD_ARRAY_INITIALIZER(WIN_WINDOW_SIZE) \
-}
 
 struct msg_index{
     CHAN_FIELD(int, i);
