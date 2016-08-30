@@ -12,15 +12,19 @@
 #include <libio/log.h>
 #include <libchain/chain.h>
 
-#ifdef CONFIG_LIBEDB_PRINTF
-#include <libedb/edb.h>
-#endif
-
 #include "pins.h"
 #include "temp_sensor.h"
 #include "mspware/driverlib.h"
 #include "magnetometer.h"
 #include "gyro.h"
+
+// Must be after any header that includes mps430.h due to
+// the workround of undef'ing 'OUT' (see pin_assign.h)
+#ifdef CONFIG_EDB
+#include <libedb/edb.h>
+#else
+#define WATCHPOINT(...)
+#endif
 
 // #define SHOW_RESULT_ON_LEDS
 // #define SHOW_PROGRESS_ON_LEDS
@@ -53,52 +57,37 @@
 struct msg_sample{
     CHAN_FIELD_ARRAY(int, sample, SAMPLE_SIZE);
 };
-#define FIELD_INIT_msg_sample { \
-    FIELD_ARRAY_INITIALIZER(SAMPLE_SIZE) \
-}
 
 struct msg_sample_avg_in{
   CHAN_FIELD(task_t *, next_task);
   CHAN_FIELD_ARRAY(int, window, SAMPLE_WINDOW_SIZE);
 };
-#define FIELD_INIT_sample_avg_in { \
-    FIELD_INITIALIZER \
-    FIELD_ARRAY_INITIALIZER(SAMPLE_WINDOW_SIZE) \
-}
 
 struct msg_sample_avg_out{
   CHAN_FIELD_ARRAY(int, average, SAMPLE_SIZE);
 };
-#define FIELD_INIT_sample_avg_out { \
-    FIELD_ARRAY_INITIALIZER(SAMPLE_SIZE) \
-}
 
 struct msg_sample_window{
   CHAN_FIELD_ARRAY(int, window, SAMPLE_WINDOW_SIZE);
 };
-#define FIELD_INIT_msg_reading { \
-    FIELD_ARRAY_INITIALIZER(SAMPLE_WINDOW_SIZE) \
-}
+
 
 struct msg_sample_windows{
     CHAN_FIELD(int, which_window);
     CHAN_FIELD_ARRAY(int, win_i, WINDOW_SIZE);
     CHAN_FIELD_ARRAY(int, windows, WIN_WINDOW_SIZE);
 };
-#define FIELD_INIT_msg_sample_windows { \
-    FIELD_INITIALIZER, \
-    FIELD_ARRAY_INITIALIZER(WINDOW_SIZE), \
-    FIELD_ARRAY_INITIALIZER(WIN_WINDOW_SIZE) \
-}
 
 struct msg_index{
+    CHAN_FIELD(int, i);
+};
+
+struct msg_self_index{
     SELF_CHAN_FIELD(int, i);
 };
-#define FIELD_INIT_msg_index { \
+#define FIELD_INIT_msg_self_index { \
     SELF_FIELD_INITIALIZER \
 }
-
-
 
 
 TASK(1, task_init)
@@ -112,7 +101,7 @@ TASK(6, task_update_proxy)
 CHANNEL(task_sample, task_window, msg_sample);
 
 CHANNEL(task_init, task_window, msg_index);
-SELF_CHANNEL(task_window, msg_index);
+SELF_CHANNEL(task_window, msg_self_index);
 
 /*Window channels to update_window_start*/
 CHANNEL(task_init, task_update_window_start, msg_sample_window);
@@ -126,19 +115,23 @@ CHANNEL(task_update_window,task_update_proxy, msg_sample_windows);
 CHANNEL(task_init, task_update_window, msg_sample_windows);
 CHANNEL(task_init, task_update_proxy, msg_sample_windows);
 
-
+#define WATCHPOINT_BOOT                 0
+#define WATCHPOINT_SAMPLE               1
+#define WATCHPOINT_WINDOW               2
+#define WATCHPOINT_UPDATE_WINDOW_START  3
+//#define WATCHPOINT_UPDATE_WINDOW       4
 
 /*This data structure conveys the averages
   to EDB through the callback interface*/
 
 typedef struct _samp_t{
-  int temp;
-  int gx;
-  int gy;
-  int gz;
-  int mx;
-  int my;
-  int mz;
+  int8_t temp;
+  int8_t gx;
+  int8_t gy;
+  int8_t gz;
+  int8_t mx;
+  int8_t my;
+  int8_t mz;
 } samp_t;
   
 typedef struct _edb_info_t{
@@ -146,7 +139,6 @@ typedef struct _edb_info_t{
 } edb_info_t;
 
 __nv edb_info_t edb_info;
-
 
 void i2c_setup(void) {
   /*
@@ -176,16 +168,33 @@ void i2c_setup(void) {
 
 }
 
-
 #ifdef CONFIG_EDB
 static void write_app_output(uint8_t *output, unsigned *len)
 {
-    unsigned output_len = NUM_WINDOWS * sizeof(int); // actual app output len
-    if( output_len > *len ){ return; }
+    unsigned output_len = sizeof(edb_info.averages); // actual app output len
+    if( output_len > *len ) {
+        PRINTF("output app data buf too small: need %u have %u\r\n",
+                output_len, *len);
+        return;
+    }
+
+#if VERBOSE > 0
+    int i;
+    BLOCK_LOG_BEGIN();
+    BLOCK_LOG("handling EDB request for app output:\r\n");
+    for (i = 0; i < output_len; ++i) {
+        BLOCK_LOG("0x%02x ", *(((uint8_t *)&edb_info.averages) + i));
+        if (((i + 1) & (8 - 1)) == 0)
+            BLOCK_LOG("\r\n");
+    }
+    BLOCK_LOG("\r\n");
+    BLOCK_LOG_END();
+#endif
+
     memcpy(output, &(edb_info.averages), output_len);
     *len = output_len;
 }
-#endif
+#endif // CONFIG_EDB
 
 static void delay(uint32_t cycles)
 {
@@ -196,11 +205,23 @@ static void delay(uint32_t cycles)
 
 void initializeHardware()
 {
-
     WDTCTL = WDTPW | WDTHOLD;  // Stop watchdog timer
 
 #if defined(BOARD_EDB) || defined(BOARD_WISP) || defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
     PM5CTL0 &= ~LOCKLPM5;	   // Enable GPIO pin settings
+#endif
+
+#if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
+    P1DIR |= BIT0 | BIT1 | BIT2;
+    P1OUT &= ~(BIT0 | BIT1 | BIT2);
+    P2DIR |= BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7;
+    P2OUT &= ~(BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7);
+    P3DIR |= BIT6 | BIT7;
+    P3OUT &= ~(BIT6 | BIT7);
+    P4DIR |= BIT0 | BIT1 | BIT4;
+    P4OUT &= ~(BIT0 | BIT1 | BIT4);
+    PJDIR |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5;
+    PJOUT |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5;
 #endif
 
 #if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
@@ -218,14 +239,15 @@ void initializeHardware()
 
     __enable_interrupt();
 
+    WATCHPOINT(WATCHPOINT_BOOT);
+
     i2c_setup();
 
     magnetometer_init();
 
     gyro_init();
 
-    
-
+    LOG("space app: curtsk %u\r\n", curctx->task->idx);
 }
 
 /*Initialize the sample window
@@ -239,8 +261,11 @@ void initializeHardware()
 */
 void task_init()
 {
- 
-    PRINTF("Space Data App Initializing\r\n");
+    LOG("Space Data App Initializing\r\n");
+
+    /* Init data buffer that will contain averages to be fetched by EDB */
+    memset(&edb_info, 0, sizeof(edb_info));
+  
     unsigned i;
     int zero = 0;
     for( i = 0; i < NUM_WINDOWS; i++ ){
@@ -258,9 +283,8 @@ void task_init()
 
     CHAN_OUT1(int, which_window, zero, CH(task_init, task_update_window));
     CHAN_OUT1(int, i, zero, CH(task_init, task_window));
-   
-    TRANSITION_TO(task_sample);
 
+    TRANSITION_TO(task_sample);
 }
 
 void read_gyro(int *x,
@@ -296,6 +320,8 @@ void read_mag(int *x,
 void task_sample(){
   
   
+  WATCHPOINT(WATCHPOINT_SAMPLE);
+
 
   signed short val = read_temperature_sensor();
 
@@ -337,7 +363,7 @@ void task_sample(){
 */
 void task_window(){
 
-  
+  WATCHPOINT(WATCHPOINT_WINDOW);
 
   int i = *CHAN_IN2(int, i, SELF_IN_CH(task_window),
                             CH(task_init, task_window));
@@ -372,7 +398,6 @@ void task_window(){
 
   /*Every TEMP_WINDOW_SIZE samples, compute a new average*/
   if( next_i == 0 ){
-    delay(8000000);    
     TRANSITION_TO(task_update_window_start);
   }else{
     TRANSITION_TO(task_sample);
@@ -381,7 +406,7 @@ void task_window(){
 }
 
 void printsamp(int t, int gx, int gy, int gz, int mx, int my, int mz){
-  PRINTF("{T:%i,G:{%i,%i,%i},M:{%i,%i,%i}}",t,gx,gy,gz,mx,my,mz);
+  LOG("{T:%i,G:{%i,%i,%i},M:{%i,%i,%i}}",t,gx,gy,gz,mx,my,mz);
 }
 
 
@@ -395,6 +420,8 @@ void printsamp(int t, int gx, int gy, int gz, int mx, int my, int mz){
       task_sample
 */
 void task_update_window_start(){
+
+  WATCHPOINT(WATCHPOINT_UPDATE_WINDOW_START);
 
   unsigned i; 
   unsigned samp; 
@@ -505,13 +532,18 @@ void task_update_window(){
                                                   CH(task_update_proxy,task_update_window));
 
   /*Update the continuously updated average buffer with this average*/ 
-  edb_info.averages[which_window].temp = avg[TEMP];
-  edb_info.averages[which_window].gx   = avg[GX];
-  edb_info.averages[which_window].gy   = avg[GY];
-  edb_info.averages[which_window].gz   = avg[GZ];
-  edb_info.averages[which_window].mx   = avg[MX];
-  edb_info.averages[which_window].my   = avg[MY];
-  edb_info.averages[which_window].mz   = avg[MZ];
+
+  /* downsample to signed 8-bit int: 7-bit of downsampled data */
+#define MAG_DOWNSAMPLE (1 << (12 - 7))  // sensor resolution: 12-bit
+#define GYRO_DOWNSAMPLE (1 << (16 - 7)) // sensor resolution: 16-bit
+
+  edb_info.averages[which_window].temp = avg[TEMP] / 10; // to degrees
+  edb_info.averages[which_window].gx   = avg[GX] / GYRO_DOWNSAMPLE;
+  edb_info.averages[which_window].gy   = avg[GY] / GYRO_DOWNSAMPLE;
+  edb_info.averages[which_window].gz   = avg[GZ] / GYRO_DOWNSAMPLE;
+  edb_info.averages[which_window].mx   = avg[MX] / MAG_DOWNSAMPLE;
+  edb_info.averages[which_window].my   = avg[MY] / MAG_DOWNSAMPLE;
+  edb_info.averages[which_window].mz   = avg[MZ] / MAG_DOWNSAMPLE;
 
   /*Get the index for this window that we need to update*/
   int win_i = *CHAN_IN2(int, win_i[which_window], CH(task_init,task_update_window), 
@@ -540,9 +572,9 @@ void task_update_window(){
     /*
     unsigned s; 
     for( s = 0; s < which_window; s++ ){
-      PRINTF(" ");
+      LOG(" ");
     }
-    PRINTF("%i[",which_window);
+    LOG("%i[",which_window);
     */
     
     /*Put this average in the next window, 
@@ -553,7 +585,7 @@ void task_update_window(){
       if( i == win_i ){
         /*window[win_i] that goes back to task_update_window_start gets the avg*/
  
-        //PRINTF("W");
+        //LOG("W");
         //printsamp(avg[TEMP],avg[GX],avg[GY],avg[GZ],avg[MX],avg[MY],avg[MZ]);
 
         CHAN_OUT1(int, window[SAMPGET(i,TEMP)], avg[TEMP], CH(task_update_window, task_update_window_start));
@@ -570,7 +602,7 @@ void task_update_window(){
       }else{
         /*window[i != win_i] that goes back to task_update_window_start gets self's window[i]*/
 
-        //PRINTF("O");
+        //LOG("O");
         /*In the value from the self channel*/
         int temp = *CHAN_IN2(int, windows[WINGET(which_window,i,TEMP)], CH(task_init,task_update_window),
                                                                         CH(task_update_proxy,task_update_window));
@@ -605,7 +637,7 @@ void task_update_window(){
       }
 
     }
-    //PRINTF("]\r\n");
+    //LOG("]\r\n");
 
   if(next_window != 0){
     /*Not the last window: average the next one*/
@@ -621,9 +653,9 @@ void task_update_window(){
                 edb_info.averages[w].mx,
                 edb_info.averages[w].my,
                 edb_info.averages[w].mz);
-      PRINTF("\r\n");
+      LOG("\r\n");
     }
-    PRINTF("-------\r\n");
+    LOG("-------\r\n");
     /*Done with all windows!*/
     TRANSITION_TO(task_sample);
   }
