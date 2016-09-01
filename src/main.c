@@ -4,12 +4,9 @@
 #include <stdio.h>
 #include <math.h>
 
-#include <msp-builtins.h>
-#include <msp-math.h>
-
-#include <libmsp/mem.h>
 #include <libio/log.h>
 #include <libchain/chain.h>
+#include <libwispbase/wisp-base.h>
 
 #ifdef CONFIG_LIBEDB_PRINTF
 #include <libedb/edb.h>
