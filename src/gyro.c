@@ -1,8 +1,8 @@
 #include <libmsp/mem.h>
 #include <libio/log.h>
+#include <libmspware/driverlib.h>
 
 #include "gyro.h"
-#include "mspware/driverlib.h"
 
 const unsigned int gyroBytes = 8;
 const unsigned int gyroIdBytes = 1;

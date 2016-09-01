@@ -1,8 +1,8 @@
 #include <libmsp/mem.h>
 #include <libio/log.h>
+#include <libmspware/driverlib.h>
 
 #include "magnetometer.h"
-#include "mspware/driverlib.h"
 
 const unsigned int magnetometerBytes = 6;
 const unsigned int magnetometerIdBytes = 3;

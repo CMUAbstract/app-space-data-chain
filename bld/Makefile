@@ -10,11 +10,7 @@ DEPS += \
 	libmsp \
 	libwispbase \
 	libchain \
-
-# TODO: package mspware as a normal dep
-CFLAGS += -I$(LIB_ROOT)
-LFLAGS += -L$(LIB_ROOT)/mspware
-LIBS += -lmspware
+	libmspware \
 
 override CFLAGS += \
 	-Wno-unused-function \

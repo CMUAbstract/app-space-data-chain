@@ -8,10 +8,10 @@
 #include <libio/log.h>
 #include <libchain/chain.h>
 #include <libwispbase/wisp-base.h>
+#include <libmspware/driverlib.h>
 
 #include "pins.h"
 #include "temp_sensor.h"
-#include "mspware/driverlib.h"
 #include "magnetometer.h"
 #include "gyro.h"
 
