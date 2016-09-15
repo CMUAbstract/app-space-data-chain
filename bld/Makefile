@@ -15,7 +15,8 @@ DEPS += \
 override CFLAGS += \
 	-Wno-unused-function \
 
-BOARD = mspts430
+override BOARD = sprite-app
+
 CONFIG_EDB = 0
 CONFIG_PRINTF_LIB = libmspsoftuart
 CONFIG_LIBEDB_PRINTF = eif
