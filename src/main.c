@@ -237,6 +237,8 @@ void initializeHardware()
 
     WATCHPOINT(WATCHPOINT_BOOT);
 
+    LOG("EDBsat app\r\n");
+
     i2c_setup();
 
     magnetometer_init();
