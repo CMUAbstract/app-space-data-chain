@@ -26,7 +26,6 @@
 // #define SHOW_RESULT_ON_LEDS
 // #define SHOW_PROGRESS_ON_LEDS
 // #define SHOW_BOOT_ON_LEDS
-#define BOARD_SPRITE_APP
 
 #define WINDOW_DIV_SHIFT 2
 #define NUM_WINDOWS 4
