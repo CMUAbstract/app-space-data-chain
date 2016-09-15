@@ -239,10 +239,13 @@ void initializeHardware()
 
     LOG("EDBsat app\r\n");
 
+    LOG("i2c init\r\n");
     i2c_setup();
 
+    LOG("mag init\r\n");
     magnetometer_init();
 
+    LOG("gyro init\r\n");
     gyro_init();
 
     LOG("space app: curtsk %u\r\n", curctx->task->idx);
