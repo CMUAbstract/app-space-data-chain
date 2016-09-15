@@ -17,6 +17,8 @@ override CFLAGS += \
 
 override BOARD = sprite-app
 
+ENABLE_GYRO = 0
+
 CONFIG_EDB = 0
 CONFIG_PRINTF_LIB = libmspsoftuart
 CONFIG_LIBEDB_PRINTF = eif
@@ -29,3 +31,5 @@ export LIBMSPSOFTUART_TIMER = B.0.4
 #include $(MAKER_ROOT)/Makefile.edb
 
 include $(MAKER_ROOT)/Makefile.console
+
+include ../Makefile.options

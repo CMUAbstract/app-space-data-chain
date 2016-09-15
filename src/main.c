@@ -245,8 +245,10 @@ void initializeHardware()
     LOG("mag init\r\n");
     magnetometer_init();
 
+#ifdef ENABLE_GYRO
     LOG("gyro init\r\n");
     gyro_init();
+#endif // ENABLE_GYRO
 
     LOG("space app: curtsk %u\r\n", curctx->task->idx);
 }
@@ -330,12 +332,14 @@ void task_sample(){
   CHAN_OUT1(int, sample[ind], val, CH(task_sample, task_window));
 
   
+#ifdef ENABLE_GYRO
   gyro_t gd;
   read_gyro(&(gd.x),&(gd.y),&(gd.z));
 
   CHAN_OUT1(int, sample[GX], gd.x, CH(task_sample, task_window));
   CHAN_OUT1(int, sample[GY], gd.y, CH(task_sample, task_window));
   CHAN_OUT1(int, sample[GZ], gd.z, CH(task_sample, task_window));
+#endif // ENABLE_GYRO
 
 
 
@@ -371,11 +375,11 @@ void task_window(){
 
   int temp = *CHAN_IN1(int, sample[TEMP], CH(task_sample, task_window));
 
+#ifdef ENABLE_GYRO
   int gx = *CHAN_IN1(int, sample[GX], CH(task_sample, task_window));
-
   int gy = *CHAN_IN1(int, sample[GY], CH(task_sample, task_window));
-
   int gz = *CHAN_IN1(int, sample[GZ], CH(task_sample, task_window));
+#endif // ENABLE_GYRO
 
   int mx = *CHAN_IN1(int, sample[MX], CH(task_sample, task_window));
 
@@ -385,9 +389,11 @@ void task_window(){
   
   
   CHAN_OUT1(int, window[SAMPGET(i,TEMP)], temp, CH(task_window, task_update_window_start));
+#ifdef ENABLE_GYRO
   CHAN_OUT1(int, window[SAMPGET(i,GX)], gx, CH(task_window, task_update_window_start));
   CHAN_OUT1(int, window[SAMPGET(i,GY)], gy, CH(task_window, task_update_window_start));
   CHAN_OUT1(int, window[SAMPGET(i,GZ)], gz, CH(task_window, task_update_window_start));
+#endif // ENABLE_GYRO
   CHAN_OUT1(int, window[SAMPGET(i,MX)], mx, CH(task_window, task_update_window_start));
   CHAN_OUT1(int, window[SAMPGET(i,MY)], my, CH(task_window, task_update_window_start));
   CHAN_OUT1(int, window[SAMPGET(i,MZ)], mz, CH(task_window, task_update_window_start));
@@ -438,6 +444,7 @@ void task_update_window_start(){
                                                            CH(task_update_window, task_update_window_start),
                                                            CH(task_init, task_update_window_start));
       sum[TEMP] += val;
+#ifdef ENABLE_GYRO
       val = *CHAN_IN3(int, window[SAMPGET(samp,GX)], CH(task_window, task_update_window_start),
                                                            CH(task_update_window, task_update_window_start),
                                                            CH(task_init, task_update_window_start));
@@ -450,6 +457,7 @@ void task_update_window_start(){
                                                            CH(task_update_window, task_update_window_start),
                                                            CH(task_init, task_update_window_start));
       sum[GZ] += val;
+#endif // ENABLE_GYRO
       val = *CHAN_IN3(int, window[SAMPGET(samp,MX)], CH(task_window, task_update_window_start),
                                                            CH(task_update_window, task_update_window_start),
                                                            CH(task_init, task_update_window_start));
@@ -485,12 +493,14 @@ void task_update_proxy(){
   int temp = *CHAN_IN2(int, windows[WINGET(which_window,i,TEMP)], CH(task_init,task_update_proxy),
                                                                   CH(task_update_window,task_update_proxy));
 
+#ifdef ENABLE_GYRO
   int gx = *CHAN_IN2(int, windows[WINGET(which_window,i,GX)], CH(task_init,task_update_proxy),
                                                               CH(task_update_window,task_update_proxy));
   int gy = *CHAN_IN2(int, windows[WINGET(which_window,i,GY)], CH(task_init,task_update_proxy),
                                                               CH(task_update_window,task_update_proxy));
   int gz = *CHAN_IN2(int, windows[WINGET(which_window,i,GZ)], CH(task_init,task_update_proxy),
                                                               CH(task_update_window,task_update_proxy));
+#endif // ENABLE_GYRO
 
   int mx = *CHAN_IN2(int, windows[WINGET(which_window,i,MX)], CH(task_init,task_update_proxy),
                                                               CH(task_update_window,task_update_proxy));
@@ -504,9 +514,11 @@ void task_update_proxy(){
   CHAN_OUT1(int, win_i[which_window], i, CH(task_update_proxy,task_update_window));
   
   CHAN_OUT1(int, windows[WINGET(which_window,i,TEMP)], temp, CH(task_update_proxy,task_update_window));
+#ifdef ENABLE_GYRO
   CHAN_OUT1(int, windows[WINGET(which_window,i,GX)], gx, CH(task_update_proxy,task_update_window));
   CHAN_OUT1(int, windows[WINGET(which_window,i,GY)], gy, CH(task_update_proxy,task_update_window));
   CHAN_OUT1(int, windows[WINGET(which_window,i,GZ)], gz, CH(task_update_proxy,task_update_window));
+#endif // ENABLE_GYRO
   CHAN_OUT1(int, windows[WINGET(which_window,i,MX)], mx, CH(task_update_proxy,task_update_window));
   CHAN_OUT1(int, windows[WINGET(which_window,i,MY)], my, CH(task_update_proxy,task_update_window));
   CHAN_OUT1(int, windows[WINGET(which_window,i,MZ)], mz, CH(task_update_proxy,task_update_window));
@@ -520,9 +532,11 @@ void task_update_window(){
   /*Get the average and window ID from the averaging call*/
   int avg[SAMPLE_SIZE];
   avg[TEMP] = *CHAN_IN1(int, average[TEMP], CH(task_update_window_start, task_update_window));
+#ifdef ENABLE_GYRO
   avg[GX] = *CHAN_IN1(int, average[GX], CH(task_update_window_start, task_update_window));
   avg[GY] = *CHAN_IN1(int, average[GY], CH(task_update_window_start, task_update_window));
   avg[GZ] = *CHAN_IN1(int, average[GZ], CH(task_update_window_start, task_update_window));
+#endif // ENABLE_GYRO
   avg[MX] = *CHAN_IN1(int, average[MX], CH(task_update_window_start, task_update_window));
   avg[MY] = *CHAN_IN1(int, average[MY], CH(task_update_window_start, task_update_window));
   avg[MZ] = *CHAN_IN1(int, average[MZ], CH(task_update_window_start, task_update_window));
@@ -539,9 +553,11 @@ void task_update_window(){
 #define GYRO_DOWNSAMPLE (1 << (16 - 7)) // sensor resolution: 16-bit
 
   edb_info.averages[which_window].temp = avg[TEMP] / 10; // to degrees
+#ifdef ENABLE_GYRO
   edb_info.averages[which_window].gx   = avg[GX] / GYRO_DOWNSAMPLE;
   edb_info.averages[which_window].gy   = avg[GY] / GYRO_DOWNSAMPLE;
   edb_info.averages[which_window].gz   = avg[GZ] / GYRO_DOWNSAMPLE;
+#endif // ENABLE_GYRO
   edb_info.averages[which_window].mx   = avg[MX] / MAG_DOWNSAMPLE;
   edb_info.averages[which_window].my   = avg[MY] / MAG_DOWNSAMPLE;
   edb_info.averages[which_window].mz   = avg[MZ] / MAG_DOWNSAMPLE;
@@ -554,9 +570,11 @@ void task_update_window(){
   //WINGET(which_window,win_i,TEMP)
   CHAN_OUT1(int, windows[WINGET(which_window,win_i,TEMP)], avg[TEMP], CH(task_update_window,task_update_proxy));
 
+#ifdef ENABLE_GYRO
   CHAN_OUT1(int, windows[WINGET(which_window,win_i,GX)], avg[GX], CH(task_update_window,task_update_proxy));
   CHAN_OUT1(int, windows[WINGET(which_window,win_i,GY)], avg[GY], CH(task_update_window,task_update_proxy));
   CHAN_OUT1(int, windows[WINGET(which_window,win_i,GZ)], avg[GZ], CH(task_update_window,task_update_proxy));
+#endif // ENABLE_GYRO
   
   CHAN_OUT1(int, windows[WINGET(which_window,win_i,MX)], avg[MX], CH(task_update_window,task_update_proxy));
   CHAN_OUT1(int, windows[WINGET(which_window,win_i,MY)], avg[MY], CH(task_update_window,task_update_proxy));
@@ -591,9 +609,11 @@ void task_update_window(){
 
         CHAN_OUT1(int, window[SAMPGET(i,TEMP)], avg[TEMP], CH(task_update_window, task_update_window_start));
         
+#ifdef ENABLE_GYRO
         CHAN_OUT1(int, window[SAMPGET(i,GX)], avg[GX], CH(task_update_window, task_update_window_start));
         CHAN_OUT1(int, window[SAMPGET(i,GY)], avg[GY], CH(task_update_window, task_update_window_start));
         CHAN_OUT1(int, window[SAMPGET(i,GZ)], avg[GZ], CH(task_update_window, task_update_window_start));
+#endif // ENABLE_GYRO
 
         CHAN_OUT1(int, window[SAMPGET(i,MX)], avg[MX], CH(task_update_window, task_update_window_start));
         CHAN_OUT1(int, window[SAMPGET(i,MY)], avg[MY], CH(task_update_window, task_update_window_start));
@@ -608,12 +628,14 @@ void task_update_window(){
         int temp = *CHAN_IN2(int, windows[WINGET(which_window,i,TEMP)], CH(task_init,task_update_window),
                                                                         CH(task_update_proxy,task_update_window));
 
+#ifdef ENABLE_GYRO
         int gx = *CHAN_IN2(int, windows[WINGET(which_window,i,GX)], CH(task_init,task_update_window),
                                                                     CH(task_update_proxy,task_update_window));
         int gy = *CHAN_IN2(int, windows[WINGET(which_window,i,GY)], CH(task_init,task_update_window),
                                                                     CH(task_update_proxy,task_update_window));
         int gz = *CHAN_IN2(int, windows[WINGET(which_window,i,GZ)], CH(task_init,task_update_window),
                                                                     CH(task_update_proxy,task_update_window));
+#endif // ENABLE_GYRO
 
         int mx = *CHAN_IN2(int, windows[WINGET(which_window,i,MX)], CH(task_init,task_update_window),
                                                                     CH(task_update_proxy,task_update_window));
@@ -627,9 +649,11 @@ void task_update_window(){
         /*Out the value back to task_update_window_start for averaging*/
         CHAN_OUT1(int, window[SAMPGET(i,TEMP)], temp, CH(task_update_window, task_update_window_start));
         
+#ifdef ENABLE_GYRO
         CHAN_OUT1(int, window[SAMPGET(i,GX)], gx, CH(task_update_window, task_update_window_start));
         CHAN_OUT1(int, window[SAMPGET(i,GY)], gy, CH(task_update_window, task_update_window_start));
         CHAN_OUT1(int, window[SAMPGET(i,GZ)], gz, CH(task_update_window, task_update_window_start));
+#endif // ENABLE_GYRO
 
         CHAN_OUT1(int, window[SAMPGET(i,MX)], mx, CH(task_update_window, task_update_window_start));
         CHAN_OUT1(int, window[SAMPGET(i,MY)], my, CH(task_update_window, task_update_window_start));

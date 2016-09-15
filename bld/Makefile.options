@@ -1,0 +1,7 @@
+
+ENABLE_GYRO ?= 1
+ifeq ($(ENABLE_GYRO),1)
+LOCAL_CFLAGS += -DENABLE_GYRO
+endif
+
+override CFLAGS += $(LOCAL_CFLAGS)
