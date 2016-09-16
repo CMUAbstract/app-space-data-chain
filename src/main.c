@@ -227,7 +227,7 @@ void initializeHardware()
 #endif
 
 #ifdef CONFIG_EDB
-    debug_setup();
+    edb_init();
     edb_set_app_output_cb(write_app_output);
 #endif
 

@@ -19,7 +19,7 @@ override BOARD = sprite-app
 
 ENABLE_GYRO = 0
 
-CONFIG_EDB = 0
+CONFIG_EDB = 1
 CONFIG_PRINTF_LIB = libmspsoftuart
 CONFIG_LIBEDB_PRINTF = eif
 
@@ -28,7 +28,7 @@ export LIBMSPSOFTUART_BAUDRATE = 115200
 export LIBMSPSOFTUART_CLOCK_FREQ = 8000000
 export LIBMSPSOFTUART_TIMER = B.0.4
 
-#include $(MAKER_ROOT)/Makefile.edb
+include $(LIB_ROOT)/libedb/bld/Makefile.target
 
 include $(MAKER_ROOT)/Makefile.console
 
