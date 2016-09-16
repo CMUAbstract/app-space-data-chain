@@ -25,3 +25,6 @@
 [submodule "ext/libmspware"]
 	path = ext/libmspware
 	url = /afs/ece.cmu.edu/project/abstract/repos/libmspware
+[submodule "ext/libedb"]
+	path = ext/libedb
+	url = /afs/ece.cmu.edu/project/abstract/repos/edb/libedb
