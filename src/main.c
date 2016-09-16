@@ -9,6 +9,9 @@
 #include <libchain/chain.h>
 #include <libwispbase/wisp-base.h>
 #include <libmspware/driverlib.h>
+#include <libmsp/watchdog.h>
+#include <libmsp/clock.h>
+#include <libmsp/gpio.h>
 
 #include "pins.h"
 #include "temp_sensor.h"
@@ -201,12 +204,9 @@ static void delay(uint32_t cycles)
 
 void initializeHardware()
 {
-    WDTCTL = WDTPW | WDTHOLD;  // Stop watchdog timer
+    msp_watchdog_disable();
 
-#if defined(BOARD_EDB) || defined(BOARD_WISP) || defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
-    PM5CTL0 &= ~LOCKLPM5;	   // Enable GPIO pin settings
-#endif
-
+    // Set unconnected pins to output low
 #if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
     P1DIR |= BIT0 | BIT1 | BIT2;
     P1OUT &= ~(BIT0 | BIT1 | BIT2);
@@ -220,11 +220,8 @@ void initializeHardware()
     PJOUT |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5;
 #endif
 
-#if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
-    CSCTL0_H = 0xA5;
-    CSCTL1 = DCOFSEL_6; //8MHz
-    CSCTL3 = DIVA_0 + DIVS_0 + DIVM_0;
-#endif
+    msp_gpio_unlock();
+    msp_clock_setup();
 
 #ifdef CONFIG_EDB
     edb_init();
