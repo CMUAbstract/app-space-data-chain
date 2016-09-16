@@ -28,3 +28,6 @@
 [submodule "ext/libedb"]
 	path = ext/libedb
 	url = /afs/ece.cmu.edu/project/abstract/repos/edb/libedb
+[submodule "ext/edb-firmware"]
+	path = ext/edb-firmware
+	url = /afs/ece.cmu.edu/project/abstract/repos/edb/edb-firmware
