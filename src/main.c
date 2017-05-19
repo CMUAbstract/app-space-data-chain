@@ -213,6 +213,7 @@ void initializeHardware()
         __bis_SR_register(LPM4_bits);
     }
 #else
+    __enable_interrupt();
     harvest_charge();
 #endif
 
