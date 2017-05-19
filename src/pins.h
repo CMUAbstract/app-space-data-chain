@@ -51,6 +51,12 @@
 #define     PORT_LED_3           1
 #define     PIN_LED_3            0
 
+#elif defined(BOARD_SPRITE_APP_1_2)
+
+#define     PORT_DBG             2
+#define     PIN_DBG_0            5
+#define     PIN_DBG_1            6
+
 
 #endif // BOARD_*
 

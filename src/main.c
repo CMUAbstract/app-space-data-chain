@@ -208,14 +208,15 @@ void initializeHardware()
     msp_watchdog_disable();
     msp_gpio_unlock();
 
-#if 1
-    while (1) {
-        __bis_SR_register(LPM4_bits);
-    }
-#else
+    GPIO(PORT_DBG, DIR) |= BIT(PIN_DBG_0) | BIT(PIN_DBG_1);
+    GPIO(PORT_DBG, OUT) &= ~(BIT(PIN_DBG_0) | BIT(PIN_DBG_1));
+
+    GPIO(PORT_DBG, OUT) |= BIT(PIN_DBG_0);
+
     __enable_interrupt();
     harvest_charge();
-#endif
+
+    GPIO(PORT_DBG, OUT) &= ~BIT(PIN_DBG_0);
 
     // Set unconnected pins to output low
 #if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
