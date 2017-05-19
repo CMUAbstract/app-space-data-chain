@@ -12,6 +12,7 @@
 #include <libmsp/watchdog.h>
 #include <libmsp/clock.h>
 #include <libmsp/gpio.h>
+#include <libharvest/charge.h>
 
 #include "pins.h"
 #include "temp_sensor.h"
@@ -205,6 +206,15 @@ static void delay(uint32_t cycles)
 void initializeHardware()
 {
     msp_watchdog_disable();
+    msp_gpio_unlock();
+
+#if 1
+    while (1) {
+        __bis_SR_register(LPM4_bits);
+    }
+#else
+    harvest_charge();
+#endif
 
     // Set unconnected pins to output low
 #if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
@@ -220,7 +230,6 @@ void initializeHardware()
     PJOUT |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5;
 #endif
 
-    msp_gpio_unlock();
     msp_clock_setup();
 
 #ifdef CONFIG_EDB
