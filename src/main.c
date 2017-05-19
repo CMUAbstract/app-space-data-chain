@@ -240,8 +240,6 @@ void initializeHardware()
 
     INIT_CONSOLE();
 
-    __enable_interrupt();
-
     WATCHPOINT(WATCHPOINT_BOOT);
 
     LOG("EDBsat app\r\n");
