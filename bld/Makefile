@@ -16,8 +16,6 @@ DEPS += \
 override CFLAGS += \
 	-Wno-unused-function \
 
-override BOARD = sprite-app
-
 ENABLE_GYRO = 0
 
 CONFIG_EDB = 1

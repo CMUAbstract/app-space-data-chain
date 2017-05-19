@@ -1,4 +1,5 @@
-export BOARD ?= mspts430
+export BOARD ?= sprite-app-v1.2
+export VOLTAGE = 2400
 
 TOOLCHAINS = \
 	gcc \
