@@ -238,9 +238,9 @@ void initializeHardware()
     edb_set_app_output_cb(write_app_output);
 #endif
 
-    INIT_CONSOLE();
-
     WATCHPOINT(WATCHPOINT_BOOT);
+
+    INIT_CONSOLE();
 
     LOG("EDBsat app\r\n");
 
