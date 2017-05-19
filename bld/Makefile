@@ -32,7 +32,6 @@ export LIBMSPSOFTUART_TIMER = B.0.1
 
 export LIBHARVEST_COMP_CHAN = 10
 export LIBHARVEST_COMP_PORT = 2.3
-#export LIBHARVEST_COMP_REF = 28 # 2.5v * (3.9/(3.9+5.23)) / 1.2v * 32
 export LIBHARVEST_COMP_REF = 25 # 2.2v * (3.9/(3.9+5.23)) / 1.2v * 32
 
 # This is ugly. Ideally, libedb would stop being board aware>
