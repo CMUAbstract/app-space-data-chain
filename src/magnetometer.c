@@ -65,7 +65,7 @@ void magnetometer_init(void) {
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
 
   EUSCI_B_I2C_disable(EUSCI_B0_BASE);
-  //PRINTF("ID: %c %c %c\r\n",magnetometerId[0],magnetometerId[1],magnetometerId[2]);
+  LOG("ID: %c %c %c\r\n",magnetometerId[0],magnetometerId[1],magnetometerId[2]);
 
   /*
    * 8,000,000hz * (1 second / 1000 ms) * 6ms = 48000
