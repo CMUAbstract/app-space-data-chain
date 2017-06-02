@@ -13,6 +13,7 @@
 #include <libmsp/clock.h>
 #include <libmsp/gpio.h>
 #include <libharvest/charge.h>
+#include <libmspuartlink/uartlink.h>
 
 #include "pins.h"
 #include "temp_sensor.h"
@@ -96,6 +97,8 @@ TASK(3, task_window)
 TASK(4, task_update_window_start)
 TASK(5, task_update_window)
 TASK(6, task_update_proxy)
+TASK(7, task_output)
+TASK(8, task_send)
 
 /*Channels to window*/
 CHANNEL(task_sample, task_window, msg_sample);
@@ -119,7 +122,7 @@ CHANNEL(task_init, task_update_proxy, msg_sample_windows);
 #define WATCHPOINT_SAMPLE               1
 #define WATCHPOINT_WINDOW               2
 #define WATCHPOINT_UPDATE_WINDOW_START  3
-//#define WATCHPOINT_UPDATE_WINDOW       4
+#define WATCHPOINT_OUTPUT               4
 
 /*This data structure conveys the averages
   to EDB through the callback interface*/
@@ -674,7 +677,13 @@ void task_update_window(){
     /*Not the last window: average the next one*/
     TRANSITION_TO(task_update_window_start);
   }else{
-    /*The last window: go back to sampling*/
+    /*The last window: output, then go back to sampling*/
+    TRANSITION_TO(task_output);
+  }
+}
+
+// TODO: we should channel the data to this task, but this is safe too
+void task_output() {
     unsigned w;
     for( w = 0; w < NUM_WINDOWS; w++ ){
       printsamp(edb_info.averages[w].temp,
@@ -687,9 +696,20 @@ void task_update_window(){
       LOG("\r\n");
     }
     LOG("-------\r\n");
+
+    TRANSITION_TO(task_send);
+}
+
+// TODO: we should channel the data to this task, but this is safe too
+void task_send() {
+    WATCHPOINT(WATCHPOINT_OUTPUT);
+
+    uartlink_open_tx();
+    uartlink_send((uint8_t *)&edb_info.averages[0], sizeof(edb_info.averages));
+    uartlink_close();
+
     /*Done with all windows!*/
     TRANSITION_TO(task_sample);
-  }
 }
 
 INIT_FUNC(initializeHardware)

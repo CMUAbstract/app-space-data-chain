@@ -12,6 +12,7 @@ DEPS += \
 	libchain \
 	libmspware \
 	libharvest \
+	libmspuartlink \
 
 override CFLAGS += \
 	-Wno-unused-function \
@@ -22,17 +23,29 @@ CONFIG_EDB = 1
 CONFIG_PRINTF_LIB = libmspsoftuart
 CONFIG_LIBEDB_PRINTF = eif
 
+MAIN_CLOCK_FREQ = 8000000
+
+export CLOCK_FREQ_SMCLK = $(MAIN_CLOCK_FREQ)
+
 export LIBMSP_CLOCK_SOURCE = DCO
-export LIBMSP_DCO_FREQ = 8000000ull
+export LIBMSP_DCO_FREQ = $(MAIN_CLOCK_FREQ)
 
 export LIBMSPSOFTUART_PORT_TX = 2.6
 export LIBMSPSOFTUART_BAUDRATE = 115200
-export LIBMSPSOFTUART_CLOCK_FREQ = 8000000
+export LIBMSPSOFTUART_CLOCK_FREQ = $(MAIN_CLOCK_FREQ)
 export LIBMSPSOFTUART_TIMER = B.0.1
 
 export LIBHARVEST_COMP_CHAN = 10
 export LIBHARVEST_COMP_PORT = 2.3
 export LIBHARVEST_COMP_REF = 25 # 2.2v * (3.9/(3.9+5.23)) / 1.2v * 32
+
+export LIBMSPUARTLINK_PIN_TX = 2.0
+export LIBMSPUARTLINK_UART_IDX = 0
+export LIBMSPUARTLINK_BAUDRATE = 115200
+
+export LIBWISPBASE_INCLUDE_UART = 0
+
+export LIBEDB_ENABLE_UART = 0
 
 # This is ugly. Ideally, libedb would stop being board aware>
 # This would involve switches for individual workarounds, instead

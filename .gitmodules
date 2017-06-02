@@ -34,3 +34,6 @@
 [submodule "ext/libharvest"]
 	path = ext/libharvest
 	url = /afs/ece.cmu.edu/project/abstract/repos/libharvest
+[submodule "ext/libmspuartlink"]
+	path = ext/libmspuartlink
+	url = /afs/ece.cmu.edu/project/abstract/repos/libmspuartlink
