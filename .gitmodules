@@ -25,3 +25,6 @@
 [submodule "ext/libmspuartlink"]
 	path = ext/libmspuartlink
 	url = /afs/ece.cmu.edu/project/abstract/repos/libmspuartlink
+[submodule "ext/libwispbase"]
+	path = ext/libwispbase
+	url = /afs/ece.cmu.edu/project/abstract/repos/wisp5
