@@ -683,9 +683,15 @@ void task_update_window(){
 void task_output() {
     for( unsigned w = 0; w < NUM_WINDOWS; w++ ){
       samp_t win_avg = *CHAN_IN1(samp_t, win_avg[w], MC_IN_CH(out, task_update_window, task_output));
-      PRINTF("OUT %u {T:%i,G:{%i,%i,%i},M:{%i,%i,%i}}\r\n",
+      PRINTF("OUT %u {T:%03i,"
+#ifdef ENABLE_GYRO
+          "G:{%05i,%05i,%05i},"
+#endif
+          "M:{%05i,%05i,%05i}}\r\n",
           w, win_avg.temp,
+#ifdef ENABLE_GYRO
           win_avg.gx, win_avg.gy, win_avg.gz,
+#endif
           win_avg.mx, win_avg.my, win_avg.mz);
     }
     TRANSITION_TO(task_pack);
