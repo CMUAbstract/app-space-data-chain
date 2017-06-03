@@ -137,7 +137,7 @@ struct msg_window_averages {
 };
 
 struct msg_pkt {
-    CHAN_FIELD(int, pkt);
+    CHAN_FIELD(pkt_t, pkt);
 };
 
 TASK(1, task_init)
