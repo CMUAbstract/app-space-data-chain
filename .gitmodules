@@ -1,15 +1,9 @@
 [submodule "ext/maker"]
 	path = ext/maker
 	url = /afs/ece.cmu.edu/project/abstract/repos/maker
-[submodule "ext/libmspprintf"]
-	path = ext/libmspprintf
-	url = /afs/ece.cmu.edu/project/abstract/repos/libmspprintf
 [submodule "ext/libwispbase"]
 	path = ext/libwispbase
 	url = /afs/ece.cmu.edu/project/abstract/repos/wisp5
-[submodule "ext/libmspconsole"]
-	path = ext/libmspconsole
-	url = /afs/ece.cmu.edu/project/abstract/repos/libmspconsole
 [submodule "ext/libio"]
 	path = ext/libio
 	url = /afs/ece.cmu.edu/project/abstract/repos/libio
