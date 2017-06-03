@@ -450,35 +450,29 @@ void task_update_window_start(){
   for(samp = 0; samp < WINDOW_SIZE; samp++){
 
 
-      int val = *CHAN_IN3(int, window[SAMPGET(samp,TEMP)], CH(task_window, task_update_window_start),
-                                                           CH(task_update_window, task_update_window_start),
-                                                           CH(task_init, task_update_window_start));
+      int val = *CHAN_IN2(int, window[SAMPGET(samp,TEMP)], CH(task_window, task_update_window_start),
+                                                           CH(task_update_window, task_update_window_start));
       sum[TEMP] += val;
 #ifdef ENABLE_GYRO
-      val = *CHAN_IN3(int, window[SAMPGET(samp,GX)], CH(task_window, task_update_window_start),
-                                                           CH(task_update_window, task_update_window_start),
-                                                           CH(task_init, task_update_window_start));
+      val = *CHAN_IN2(int, window[SAMPGET(samp,GX)], CH(task_window, task_update_window_start),
+                                                           CH(task_update_window, task_update_window_start));
       sum[GX] += val;
-      val = *CHAN_IN3(int, window[SAMPGET(samp,GY)], CH(task_window, task_update_window_start),
-                                                           CH(task_update_window, task_update_window_start),
-                                                           CH(task_init, task_update_window_start));
+      val = *CHAN_IN2(int, window[SAMPGET(samp,GY)], CH(task_window, task_update_window_start),
+                                                           CH(task_update_window, task_update_window_start));
       sum[GY] += val;
-      val = *CHAN_IN3(int, window[SAMPGET(samp,GZ)], CH(task_window, task_update_window_start),
-                                                           CH(task_update_window, task_update_window_start),
-                                                           CH(task_init, task_update_window_start));
+      val = *CHAN_IN2(int, window[SAMPGET(samp,GZ)], CH(task_window, task_update_window_start),
+                                                           CH(task_update_window, task_update_window_start));
       sum[GZ] += val;
 #endif // ENABLE_GYRO
-      val = *CHAN_IN3(int, window[SAMPGET(samp,MX)], CH(task_window, task_update_window_start),
-                                                           CH(task_update_window, task_update_window_start),
-                                                           CH(task_init, task_update_window_start));
+      val = *CHAN_IN2(int, window[SAMPGET(samp,MX)], CH(task_window, task_update_window_start),
+                                                           CH(task_update_window, task_update_window_start));
       sum[MX] += val;
-      val = *CHAN_IN3(int, window[SAMPGET(samp,MY)], CH(task_window, task_update_window_start),
-                                                           CH(task_update_window, task_update_window_start),
-                                                           CH(task_init, task_update_window_start));
+      val = *CHAN_IN2(int, window[SAMPGET(samp,MY)], CH(task_window, task_update_window_start),
+                                                           CH(task_update_window, task_update_window_start));
       sum[MY] += val;
-      val = *CHAN_IN3(int, window[SAMPGET(samp,MZ)], CH(task_window, task_update_window_start),
-                                                           CH(task_update_window, task_update_window_start),
-                                                           CH(task_init, task_update_window_start));
+      LOG("add my=%i\r\n", val);
+      val = *CHAN_IN2(int, window[SAMPGET(samp,MZ)], CH(task_window, task_update_window_start),
+                                                           CH(task_update_window, task_update_window_start));
       sum[MZ] += val;
       
   }
