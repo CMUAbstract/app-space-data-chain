@@ -8,6 +8,7 @@ OBJECTS = \
 
 DEPS += \
 	libmsp \
+	libio \
 	libwispbase \
 	libchain \
 	libmspware \
@@ -20,8 +21,6 @@ override CFLAGS += \
 ENABLE_GYRO = 0
 
 CONFIG_EDB = 1
-CONFIG_PRINTF_LIB = libmspconsole
-CONFIG_LIBEDB_PRINTF = eif
 
 MAIN_CLOCK_FREQ = 8000000
 
@@ -31,12 +30,13 @@ export CLOCK_FREQ_SMCLK = $(MAIN_CLOCK_FREQ)
 export LIBMSP_CLOCK_SOURCE = DCO
 export LIBMSP_DCO_FREQ = $(MAIN_CLOCK_FREQ)
 
-# Dev UART
+export LIBIO_BACKEND = hwuart
 export LIBMSP_UART_IDX = 0
 export LIBMSP_UART_PIN_TX = 1.5
 export LIBMSP_UART_BAUDRATE = 115200
 export LIBMSP_UART_CLOCK = SMCLK
 
+#export LIBIO_BACKEND = swuart
 #export LIBMSPSOFTUART_PORT_TX = 2.6
 #export LIBMSPSOFTUART_BAUDRATE = 115200
 #export LIBMSPSOFTUART_CLOCK_FREQ = $(MAIN_CLOCK_FREQ)
@@ -66,7 +66,5 @@ $(error BOARD incosistent with libedb board setting)
 endif
 
 include $(LIB_ROOT)/libedb/bld/Makefile.target
-
-include $(MAKER_ROOT)/Makefile.console
 
 include ../Makefile.options

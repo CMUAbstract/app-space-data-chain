@@ -5,7 +5,7 @@
 #include <math.h>
 #include <string.h>
 
-#include <libio/log.h>
+#include <libio/console.h>
 #include <libchain/chain.h>
 #include <libwispbase/wisp-base.h>
 #include <libmspware/driverlib.h>

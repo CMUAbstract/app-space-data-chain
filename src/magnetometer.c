@@ -1,5 +1,5 @@
 #include <libmsp/mem.h>
-#include <libio/log.h>
+#include <libio/console.h>
 #include <libmspware/driverlib.h>
 
 #include "magnetometer.h"
