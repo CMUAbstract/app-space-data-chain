@@ -1,6 +1,7 @@
 #include <msp430.h>
 
 #include <libio/console.h>
+#include <libmsp/sleep.h>
 
   // Table 6-62: ADC12 calibration for 1.2v reference
 #define TLV_CAL30 ((int *)(0x01A1A))
@@ -24,7 +25,8 @@ int read_temperature_sensor() {
 
   REFCTL0 = REFVSEL_0 | REFON;
 
-  __delay_cycles(1000);                      // Delay for Ref to settle
+  // Wait for REF to settle
+  msp_sleep(3); // ~5ms @ ACLK/64 cycles => 32768Hz
 
   ADC12CTL0 |= ADC12ENC;                         // Enable conversions
   ADC12CTL0 |= ADC12SC;                   // Start conversion
