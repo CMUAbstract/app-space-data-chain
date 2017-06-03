@@ -121,10 +121,12 @@ struct msg_sample_windows{
 
 struct msg_index{
     CHAN_FIELD(int, i);
+    CHAN_FIELD(bool, first_window);
 };
 
 struct msg_self_index{
     SELF_CHAN_FIELD(int, i);
+    SELF_CHAN_FIELD(bool, first_window);
 };
 #define FIELD_INIT_msg_self_index { \
     SELF_FIELD_INITIALIZER \
@@ -153,6 +155,8 @@ CHANNEL(task_sample, task_window, msg_sample);
 
 CHANNEL(task_init, task_window, msg_index);
 SELF_CHANNEL(task_window, msg_self_index);
+CHANNEL(task_window, task_update_window, msg_sample_windows);
+CHANNEL(task_window, task_update_proxy, msg_sample_windows);
 
 /*Window channels to update_window_start*/
 CHANNEL(task_init, task_update_window_start, msg_sample_window);
@@ -282,21 +286,17 @@ void task_init()
 
     unsigned i;
     int zero = 0;
+    bool vtrue = true;
     for( i = 0; i < NUM_WINDOWS; i++ ){
       /*Zero every window's win_i*/
       CHAN_OUT1(int, win_i[i], zero, CH(task_init, task_update_window));
       CHAN_OUT1(int, win_i[i], zero, CH(task_init, task_update_proxy));
     }
-    for( i = 0; i < WIN_WINDOW_SIZE; i++ ){
-      int t = 42;
-      int t2 = 99;
-      CHAN_OUT1(int, windows[i], t, CH(task_init, task_update_window));
-      CHAN_OUT1(int, windows[i], t2, CH(task_init, task_update_proxy));
-    }
-    
 
     CHAN_OUT1(int, which_window, zero, CH(task_init, task_update_window));
+    CHAN_OUT1(int, which_window, zero, CH(task_init, task_update_proxy));
     CHAN_OUT1(int, i, zero, CH(task_init, task_window));
+    CHAN_OUT1(int, first_window, vtrue, CH(task_init, task_window));
 
     TRANSITION_TO(task_sample);
 }
@@ -413,9 +413,45 @@ void task_window(){
   int next_i = (i + 1) % WINDOW_SIZE;
   CHAN_OUT1(int, i, next_i, SELF_OUT_CH(task_window));
 
-
   /*Every TEMP_WINDOW_SIZE samples, compute a new average*/
   if( next_i == 0 ){
+
+    // Initialize all windows in the cascade with th first sample
+    // The windows start with the same values, but will change at different "rates"
+    bool first_window = *CHAN_IN2(bool, first_window, CH(task_init, task_window),
+                                                      SELF_IN_CH(task_window));
+    LOG("first window: %u\r\n", first_window);
+    if (first_window) {
+      for (unsigned which_window = 0; which_window < NUM_WINDOWS; ++which_window) {
+          for( i = 0; i < WINDOW_SIZE; i++ ){
+            CHAN_OUT1(int, windows[WINGET(which_window,i,TEMP)], temp, CH(task_window, task_update_window));
+            CHAN_OUT1(int, windows[WINGET(which_window,i,TEMP)], temp, CH(task_window, task_update_proxy));
+            LOG("winow -> {update_window,update_proxy}: [%u,%u,%u=%u] temp %i\r\n",
+                which_window,i,TEMP,WINGET(which_window,i,TEMP), temp);
+
+#ifdef ENABLE_GYRO
+            CHAN_OUT1(int, windows[WINGET(which_window,i,GX)], gx, CH(task_window, task_update_window));
+            CHAN_OUT1(int, windows[WINGET(which_window,i,GX)], gx, CH(task_window, task_update_proxy));
+            CHAN_OUT1(int, windows[WINGET(which_window,i,GY)], gy, CH(task_window, task_update_window));
+            CHAN_OUT1(int, windows[WINGET(which_window,i,GY)], gy, CH(task_window, task_update_proxy));
+            CHAN_OUT1(int, windows[WINGET(which_window,i,GZ)], gz, CH(task_window, task_update_window));
+            CHAN_OUT1(int, windows[WINGET(which_window,i,GZ)], gz, CH(task_window, task_update_proxy));
+#endif
+
+            CHAN_OUT1(int, windows[WINGET(which_window,i,MX)], mx, CH(task_window, task_update_window));
+            CHAN_OUT1(int, windows[WINGET(which_window,i,MX)], mx, CH(task_window, task_update_proxy));
+            CHAN_OUT1(int, windows[WINGET(which_window,i,MY)], my, CH(task_window, task_update_window));
+            CHAN_OUT1(int, windows[WINGET(which_window,i,MY)], my, CH(task_window, task_update_proxy));
+            LOG("winow -> {update_window,update_proxy}: [%u,%u,%u=%u] my %i\r\n",
+                which_window,i,MY,WINGET(which_window,i,MY), my);
+            CHAN_OUT1(int, windows[WINGET(which_window,i,MZ)], mz, CH(task_window, task_update_window));
+            CHAN_OUT1(int, windows[WINGET(which_window,i,MZ)], mz, CH(task_window, task_update_proxy));
+          }
+      }
+      first_window = !first_window;
+      CHAN_OUT1(bool, first_window, first_window, SELF_OUT_CH(task_window));
+    }
+
     TRANSITION_TO(task_update_window_start);
   }else{
     TRANSITION_TO(task_sample);
@@ -478,6 +514,8 @@ void task_update_window_start(){
   }
   for( i = 0; i < SAMPLE_SIZE; i++ ){
     avg[i] = sum[i] >> WINDOW_DIV_SHIFT;
+    if (i == MY)
+        LOG("avg my=%i\r\n", avg[i]);
     CHAN_OUT1(int, average[i], avg[i], CH(task_update_window_start,task_update_window));
   }
  
@@ -494,23 +532,27 @@ void task_update_proxy(){
   int i = *CHAN_IN2(int, win_i[which_window], CH(task_init,task_update_proxy), 
                                                   CH(task_update_window,task_update_proxy));
 
-  int temp = *CHAN_IN2(int, windows[WINGET(which_window,i,TEMP)], CH(task_init,task_update_proxy),
+  int temp = *CHAN_IN2(int, windows[WINGET(which_window,i,TEMP)], CH(task_window,task_update_proxy),
                                                                   CH(task_update_window,task_update_proxy));
+  LOG("proxy <- {window,update_window}: [%u,%u,%u=%u] temp %i\r\n", which_window, i, TEMP,
+      WINGET(which_window,i,TEMP), temp);
 
 #ifdef ENABLE_GYRO
-  int gx = *CHAN_IN2(int, windows[WINGET(which_window,i,GX)], CH(task_init,task_update_proxy),
+  int gx = *CHAN_IN2(int, windows[WINGET(which_window,i,GX)], CH(task_window,task_update_proxy),
                                                               CH(task_update_window,task_update_proxy));
-  int gy = *CHAN_IN2(int, windows[WINGET(which_window,i,GY)], CH(task_init,task_update_proxy),
+  int gy = *CHAN_IN2(int, windows[WINGET(which_window,i,GY)], CH(task_window,task_update_proxy),
                                                               CH(task_update_window,task_update_proxy));
-  int gz = *CHAN_IN2(int, windows[WINGET(which_window,i,GZ)], CH(task_init,task_update_proxy),
+  int gz = *CHAN_IN2(int, windows[WINGET(which_window,i,GZ)], CH(task_window,task_update_proxy),
                                                               CH(task_update_window,task_update_proxy));
 #endif // ENABLE_GYRO
 
-  int mx = *CHAN_IN2(int, windows[WINGET(which_window,i,MX)], CH(task_init,task_update_proxy),
+  int mx = *CHAN_IN2(int, windows[WINGET(which_window,i,MX)], CH(task_window,task_update_proxy),
                                                               CH(task_update_window,task_update_proxy));
-  int my = *CHAN_IN2(int, windows[WINGET(which_window,i,MY)], CH(task_init,task_update_proxy),
+  int my = *CHAN_IN2(int, windows[WINGET(which_window,i,MY)], CH(task_window,task_update_proxy),
                                                               CH(task_update_window,task_update_proxy));
-  int mz = *CHAN_IN2(int, windows[WINGET(which_window,i,MZ)], CH(task_init,task_update_proxy),
+  LOG("proxy <- {window,update_window}: [%u,%u,%u=%u] my %i\r\n", which_window, i, MY,
+      WINGET(which_window,i,MY), my);
+  int mz = *CHAN_IN2(int, windows[WINGET(which_window,i,MZ)], CH(task_window,task_update_proxy),
                                                               CH(task_update_window,task_update_proxy));
 
 
@@ -518,6 +560,7 @@ void task_update_proxy(){
   CHAN_OUT1(int, win_i[which_window], i, CH(task_update_proxy,task_update_window));
   
   CHAN_OUT1(int, windows[WINGET(which_window,i,TEMP)], temp, CH(task_update_proxy,task_update_window));
+  LOG("proxy -> upd window: temp %i\r\n", temp);
 #ifdef ENABLE_GYRO
   CHAN_OUT1(int, windows[WINGET(which_window,i,GX)], gx, CH(task_update_proxy,task_update_window));
   CHAN_OUT1(int, windows[WINGET(which_window,i,GY)], gy, CH(task_update_proxy,task_update_window));
@@ -571,6 +614,7 @@ void task_update_window(){
 
   CHAN_OUT1(samp_t, win_avg[which_window], win_avg,
             MC_OUT_CH(out, task_update_window, task_output, task_pack));
+
 
   /*Use window ID and win index to self-chan the average, saving it*/
   //WINGET(which_window,win_i,TEMP)
@@ -632,23 +676,23 @@ void task_update_window(){
 
         //LOG("O");
         /*In the value from the self channel*/
-        int temp = *CHAN_IN2(int, windows[WINGET(which_window,i,TEMP)], CH(task_init,task_update_window),
+        int temp = *CHAN_IN2(int, windows[WINGET(which_window,i,TEMP)], CH(task_window,task_update_window),
                                                                         CH(task_update_proxy,task_update_window));
 
 #ifdef ENABLE_GYRO
-        int gx = *CHAN_IN2(int, windows[WINGET(which_window,i,GX)], CH(task_init,task_update_window),
+        int gx = *CHAN_IN2(int, windows[WINGET(which_window,i,GX)], CH(task_window,task_update_window),
                                                                     CH(task_update_proxy,task_update_window));
-        int gy = *CHAN_IN2(int, windows[WINGET(which_window,i,GY)], CH(task_init,task_update_window),
+        int gy = *CHAN_IN2(int, windows[WINGET(which_window,i,GY)], CH(task_window,task_update_window),
                                                                     CH(task_update_proxy,task_update_window));
-        int gz = *CHAN_IN2(int, windows[WINGET(which_window,i,GZ)], CH(task_init,task_update_window),
+        int gz = *CHAN_IN2(int, windows[WINGET(which_window,i,GZ)], CH(task_window,task_update_window),
                                                                     CH(task_update_proxy,task_update_window));
 #endif // ENABLE_GYRO
 
-        int mx = *CHAN_IN2(int, windows[WINGET(which_window,i,MX)], CH(task_init,task_update_window),
+        int mx = *CHAN_IN2(int, windows[WINGET(which_window,i,MX)], CH(task_window,task_update_window),
                                                                     CH(task_update_proxy,task_update_window));
-        int my = *CHAN_IN2(int, windows[WINGET(which_window,i,MY)], CH(task_init,task_update_window),
+        int my = *CHAN_IN2(int, windows[WINGET(which_window,i,MY)], CH(task_window,task_update_window),
                                                                     CH(task_update_proxy,task_update_window));
-        int mz = *CHAN_IN2(int, windows[WINGET(which_window,i,MZ)], CH(task_init,task_update_window),
+        int mz = *CHAN_IN2(int, windows[WINGET(which_window,i,MZ)], CH(task_window,task_update_window),
                                                                     CH(task_update_proxy,task_update_window));
 
         //printsamp(temp,gx,gy,gz,mx,my,mz);
