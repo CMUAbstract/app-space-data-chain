@@ -42,7 +42,7 @@ int read_temperature_sensor() {
   int cal85 = *TLV_CAL85;
   int tempC = (sample - cal30) * 55 / (cal85 - cal30) + 30;
 
-  LOG("sample=%i => T=%i\r\n", sample, tempC);
+  LOG("[temp] sample=%i => T=%i\r\n", sample, tempC);
 
   return tempC;
 }
