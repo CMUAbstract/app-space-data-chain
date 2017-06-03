@@ -442,8 +442,8 @@ void task_update_window_start(){
 
   unsigned i; 
   unsigned samp; 
-  unsigned sum[SAMPLE_SIZE];
-  unsigned avg[SAMPLE_SIZE];
+  long sum[SAMPLE_SIZE];
+  int avg[SAMPLE_SIZE];
   for( i = 0; i < SAMPLE_SIZE; i++ ){
     sum[i] = 0;
   }
