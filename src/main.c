@@ -30,6 +30,7 @@
 #define WINDOW_SIZE 4 /*number of samples in a window*/
 #define NUM_WINDOWS 4
 #define WINDOW_DIV_SHIFT 2 /* 2^WINDOW_DIV_SHIFT = NUM_WINDOWS */
+#define WINDOWS_SIZE 16 /* NUM_WINDOWS * WINDOW_SIZE (libchain needs a literal number) */
 
 /*Get coordinate coor from the sample samp in window win -- windows[WINGET(0,1)*/
 #define WINGET(win,samp) (WINDOW_SIZE*win + samp)
@@ -99,6 +100,17 @@ struct msg_sample_windows{
     CHAN_FIELD_ARRAY(samp_t, windows, NUM_WINDOWS * WINDOW_SIZE);
 };
 
+struct msg_self_sample_windows{
+    SELF_CHAN_FIELD(int, which_window);
+    SELF_CHAN_FIELD_ARRAY(int, win_i, WINDOW_SIZE);
+    SELF_CHAN_FIELD_ARRAY(samp_t, windows, WINDOWS_SIZE);
+};
+#define FIELD_INIT_msg_self_sample_windows { \
+    SELF_FIELD_INITIALIZER, \
+    SELF_FIELD_ARRAY_INITIALIZER(WINDOW_SIZE), \
+    SELF_FIELD_ARRAY_INITIALIZER(WINDOWS_SIZE) \
+}
+
 struct msg_index{
     CHAN_FIELD(int, i);
     CHAN_FIELD(bool, first_window);
@@ -125,10 +137,9 @@ TASK(2, task_sample)
 TASK(3, task_window)
 TASK(4, task_update_window_start)
 TASK(5, task_update_window)
-TASK(6, task_update_proxy)
-TASK(7, task_output)
-TASK(8, task_pack)
-TASK(9, task_send)
+TASK(6, task_output)
+TASK(7, task_pack)
+TASK(8, task_send)
 
 /*Channels to window*/
 CHANNEL(task_sample, task_window, msg_sample);
@@ -136,7 +147,6 @@ CHANNEL(task_sample, task_window, msg_sample);
 CHANNEL(task_init, task_window, msg_index);
 SELF_CHANNEL(task_window, msg_self_index);
 CHANNEL(task_window, task_update_window, msg_sample_windows);
-CHANNEL(task_window, task_update_proxy, msg_sample_windows);
 
 /*Window channels to update_window_start*/
 CHANNEL(task_init, task_update_window_start, msg_sample_window);
@@ -145,10 +155,8 @@ CHANNEL(task_update_window, task_update_window_start, msg_sample_window);
 CHANNEL(task_update_window_start, task_update_window, msg_sample_avg_out);
 
 /*Windows channels to task_update_window*/
-CHANNEL(task_update_proxy,task_update_window, msg_sample_windows);
-CHANNEL(task_update_window,task_update_proxy, msg_sample_windows);
+SELF_CHANNEL(task_update_window, msg_self_sample_windows);
 CHANNEL(task_init, task_update_window, msg_sample_windows);
-CHANNEL(task_init, task_update_proxy, msg_sample_windows);
 
 MULTICAST_CHANNEL(msg_window_averages, out, task_update_window, task_output, task_pack);
 CHANNEL(task_pack, task_send, msg_pkt);
@@ -284,11 +292,9 @@ void task_init()
     for( i = 0; i < NUM_WINDOWS; i++ ){
       /*Zero every window's win_i*/
       CHAN_OUT1(int, win_i[i], zero, CH(task_init, task_update_window));
-      CHAN_OUT1(int, win_i[i], zero, CH(task_init, task_update_proxy));
     }
 
     CHAN_OUT1(int, which_window, zero, CH(task_init, task_update_window));
-    CHAN_OUT1(int, which_window, zero, CH(task_init, task_update_proxy));
     CHAN_OUT1(int, i, zero, CH(task_init, task_window));
     CHAN_OUT1(int, first_window, vtrue, CH(task_init, task_window));
 
@@ -386,7 +392,6 @@ void task_window(){
       for (unsigned which_window = 0; which_window < NUM_WINDOWS; ++which_window) {
           for( i = 0; i < WINDOW_SIZE; i++ ){
             CHAN_OUT1(samp_t, windows[WINGET(which_window,i)], sample, CH(task_window, task_update_window));
-            CHAN_OUT1(samp_t, windows[WINGET(which_window,i)], sample, CH(task_window, task_update_proxy));
           }
       }
       first_window = !first_window;
@@ -454,31 +459,7 @@ void task_update_window_start(){
 
   CHAN_OUT1(samp_t, average, avg, CH(task_update_window_start,task_update_window));
 
-  TRANSITION_TO(task_update_proxy);
-}
-
-void task_update_proxy(){
-
-  LOG("task update_proxy\r\n");
-
-  int which_window = *CHAN_IN2(int, which_window, CH(task_init,task_update_proxy),
-                                                  CH(task_update_window,task_update_proxy));
-
-  int i = *CHAN_IN2(int, win_i[which_window], CH(task_init,task_update_proxy), 
-                                                  CH(task_update_window,task_update_proxy));
-
-  LOG("which_window=%u, i=%u\r\n", which_window, i);
-
-  samp_t sample = *CHAN_IN2(samp_t, windows[WINGET(which_window,i)], CH(task_window,task_update_proxy),
-                                                                  CH(task_update_window,task_update_proxy));
-
-  CHAN_OUT1(int, which_window, which_window, CH(task_update_proxy,task_update_window));
-  CHAN_OUT1(int, win_i[which_window], i, CH(task_update_proxy,task_update_window));
-  
-  CHAN_OUT1(samp_t, windows[WINGET(which_window,i)], sample, CH(task_update_proxy,task_update_window));
-
   TRANSITION_TO(task_update_window);
-
 }
 
 void task_update_window(){
@@ -489,11 +470,11 @@ void task_update_window(){
   samp_t avg = *CHAN_IN1(samp_t, average, CH(task_update_window_start, task_update_window));
 
   int which_window = *CHAN_IN2(int, which_window, CH(task_init,task_update_window),
-                                                  CH(task_update_proxy,task_update_window));
+                                                  SELF_IN_CH(task_update_window));
 
   /*Get the index for this window that we need to update*/
   int win_i = *CHAN_IN2(int, win_i[which_window], CH(task_init,task_update_window), 
-                                                  CH(task_update_proxy,task_update_window));
+                                                  SELF_IN_CH(task_update_window));
 
   /* Window average is ready for this window, forward to output, packing, and sending tasks */
   PRINTF("SEND {T:%i,"
@@ -512,15 +493,15 @@ void task_update_window(){
 
   /*Use window ID and win index to self-chan the average, saving it*/
   //WINGET(which_window,win_i,TEMP)
-  CHAN_OUT1(samp_t, windows[WINGET(which_window,win_i)], avg, CH(task_update_window,task_update_proxy));
+  CHAN_OUT1(samp_t, windows[WINGET(which_window,win_i)], avg, SELF_OUT_CH(task_update_window));
 
   /*Send self the next win_i for this window*/
   int next_wini = (win_i + 1) % WINDOW_SIZE;
-  CHAN_OUT1(int, win_i[which_window], next_wini, CH(task_update_window,task_update_proxy));
+  CHAN_OUT1(int, win_i[which_window], next_wini, SELF_OUT_CH(task_update_window));
 
   /*Determine the next window to average*/
   int next_window = (which_window + 1) % NUM_WINDOWS;
-  CHAN_OUT1(int, which_window, next_window, CH(task_update_window,task_update_proxy));
+  CHAN_OUT1(int, which_window, next_window, SELF_OUT_CH(task_update_window));
 
     /*For pretty printing*/ 
     /*
@@ -548,7 +529,7 @@ void task_update_window(){
         //LOG("O");
         /*In the value from the self channel*/
         samp_t sample = *CHAN_IN2(samp_t, windows[WINGET(which_window,i)], CH(task_window,task_update_window),
-                                                                           CH(task_update_proxy,task_update_window));
+                                                                           SELF_IN_CH(task_update_window));
 
         /*Out the value back to task_update_window_start for averaging*/
         CHAN_OUT1(samp_t, window[i], sample, CH(task_update_window, task_update_window_start));
