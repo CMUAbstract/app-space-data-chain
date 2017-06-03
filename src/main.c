@@ -54,6 +54,47 @@
 #define MZ 6
 #define ZERO 7
 
+typedef struct _samp_t{
+  int temp;
+  int gx;
+  int gy;
+  int gz;
+  int mx;
+  int my;
+  int mz;
+} samp_t;
+
+// Type for pkt sent over the radio (via UART)
+
+// Transmit first and last windows only
+static const unsigned pkt_window_indexes[] = { 0, NUM_WINDOWS - 1 };
+#define PKT_NUM_WINDOWS (sizeof(pkt_window_indexes) / sizeof(pkt_window_indexes[0]))
+
+typedef struct __attribute__((packed)) {
+    unsigned temp:8;
+    unsigned gx:4;
+    unsigned gy:4;
+    unsigned gz:4;
+    unsigned mx:4;
+    unsigned my:4;
+    unsigned mz:4;
+} pkt_win_t;
+
+typedef struct __attribute__((packed)) {
+    pkt_win_t windows[PKT_NUM_WINDOWS];
+} pkt_t;
+
+#define GYRO_DOWNSAMPLE_FACTOR 4
+#define MAG_DOWNSAMPLE_FACTOR  4
+
+// TODO
+/* downsample to signed 8-bit int: 7-bit of downsampled data */
+// #define MAG_DOWNSAMPLE (1 << (12 - 7))  // sensor resolution: 12-bit
+// #define GYRO_DOWNSAMPLE (1 << (16 - 7)) // sensor resolution: 16-bit
+
+
+// Channel declarations
+
 struct msg_sample{
     CHAN_FIELD_ARRAY(int, sample, SAMPLE_SIZE);
 };
@@ -89,6 +130,13 @@ struct msg_self_index{
     SELF_FIELD_INITIALIZER \
 }
 
+struct msg_window_averages {
+    CHAN_FIELD_ARRAY(samp_t, win_avg, NUM_WINDOWS);
+};
+
+struct msg_pkt {
+    CHAN_FIELD(int, pkt);
+};
 
 TASK(1, task_init)
 TASK(2, task_sample)
@@ -97,7 +145,8 @@ TASK(4, task_update_window_start)
 TASK(5, task_update_window)
 TASK(6, task_update_proxy)
 TASK(7, task_output)
-TASK(8, task_send)
+TASK(8, task_pack)
+TASK(9, task_send)
 
 /*Channels to window*/
 CHANNEL(task_sample, task_window, msg_sample);
@@ -117,30 +166,14 @@ CHANNEL(task_update_window,task_update_proxy, msg_sample_windows);
 CHANNEL(task_init, task_update_window, msg_sample_windows);
 CHANNEL(task_init, task_update_proxy, msg_sample_windows);
 
+MULTICAST_CHANNEL(msg_window_averages, out, task_update_window, task_output, task_pack);
+CHANNEL(task_pack, task_send, msg_pkt);
+
 #define WATCHPOINT_BOOT                 0
 #define WATCHPOINT_SAMPLE               1
 #define WATCHPOINT_WINDOW               2
 #define WATCHPOINT_UPDATE_WINDOW_START  3
 #define WATCHPOINT_OUTPUT               4
-
-/*This data structure conveys the averages
-  to EDB through the callback interface*/
-
-typedef struct _samp_t{
-  int8_t temp;
-  int8_t gx;
-  int8_t gy;
-  int8_t gz;
-  int8_t mx;
-  int8_t my;
-  int8_t mz;
-} samp_t;
-  
-typedef struct _edb_info_t{
-  samp_t averages[NUM_WINDOWS];
-} edb_info_t;
-
-__nv edb_info_t edb_info;
 
 void i2c_setup(void) {
   /*
@@ -170,34 +203,6 @@ void i2c_setup(void) {
 
 }
 
-#ifdef CONFIG_EDB
-static void write_app_output(uint8_t *output, unsigned *len)
-{
-    unsigned output_len = sizeof(edb_info.averages); // actual app output len
-    if( output_len > *len ) {
-        PRINTF("output app data buf too small: need %u have %u\r\n",
-                output_len, *len);
-        return;
-    }
-
-#if VERBOSE > 0
-    int i;
-    BLOCK_LOG_BEGIN();
-    BLOCK_LOG("handling EDB request for app output:\r\n");
-    for (i = 0; i < output_len; ++i) {
-        BLOCK_LOG("0x%02x ", *(((uint8_t *)&edb_info.averages) + i));
-        if (((i + 1) & (8 - 1)) == 0)
-            BLOCK_LOG("\r\n");
-    }
-    BLOCK_LOG("\r\n");
-    BLOCK_LOG_END();
-#endif
-
-    memcpy(output, &(edb_info.averages), output_len);
-    *len = output_len;
-}
-#endif // CONFIG_EDB
-
 static void delay(uint32_t cycles)
 {
     unsigned i;
@@ -210,15 +215,17 @@ void initializeHardware()
     msp_watchdog_disable();
     msp_gpio_unlock();
 
-    GPIO(PORT_DBG, DIR) |= BIT(PIN_DBG_0) | BIT(PIN_DBG_1);
-    GPIO(PORT_DBG, OUT) &= ~(BIT(PIN_DBG_0) | BIT(PIN_DBG_1));
+    GPIO(PORT_DBG_0, DIR) |= BIT(PIN_DBG_0);
+    GPIO(PORT_DBG_0, OUT) &= ~BIT(PIN_DBG_0);
+    GPIO(PORT_DBG_1, DIR) |= BIT(PIN_DBG_1);
+    GPIO(PORT_DBG_1, DIR) &= ~BIT(PIN_DBG_1);
 
-    GPIO(PORT_DBG, OUT) |= BIT(PIN_DBG_0);
+    GPIO(PORT_DBG_0, OUT) |= BIT(PIN_DBG_0);
 
     __enable_interrupt();
     harvest_charge();
 
-    GPIO(PORT_DBG, OUT) &= ~BIT(PIN_DBG_0);
+    GPIO(PORT_DBG_0, OUT) &= ~BIT(PIN_DBG_0);
 
     // Set unconnected pins to output low
 #if defined(BOARD_SPRITE_APP_SOCKET_RHA) || defined(BOARD_SPRITE_APP)
@@ -238,14 +245,13 @@ void initializeHardware()
 
 #ifdef CONFIG_EDB
     edb_init();
-    edb_set_app_output_cb(write_app_output);
 #endif
 
     WATCHPOINT(WATCHPOINT_BOOT);
 
     INIT_CONSOLE();
 
-    LOG("EDBsat app\r\n");
+    PRINTF("EDBsat app %u\r\n", 72);
 
     LOG("i2c init\r\n");
     i2c_setup();
@@ -274,9 +280,6 @@ void task_init()
 {
     LOG("Space Data App Initializing\r\n");
 
-    /* Init data buffer that will contain averages to be fetched by EDB */
-    memset(&edb_info, 0, sizeof(edb_info));
-  
     unsigned i;
     int zero = 0;
     for( i = 0; i < NUM_WINDOWS; i++ ){
@@ -424,7 +427,6 @@ void printsamp(int t, int gx, int gy, int gz, int mx, int my, int mz){
   LOG("{T:%i,G:{%i,%i,%i},M:{%i,%i,%i}}",t,gx,gy,gz,mx,my,mz);
 }
 
-
 /*Report the samples in the window
   Input channels: 
     { int window[TEMP_WINDOW_SIZE]; }
@@ -554,25 +556,27 @@ void task_update_window(){
   int which_window = *CHAN_IN2(int, which_window, CH(task_init,task_update_window),
                                                   CH(task_update_proxy,task_update_window));
 
-  /*Update the continuously updated average buffer with this average*/ 
-
-  /* downsample to signed 8-bit int: 7-bit of downsampled data */
-#define MAG_DOWNSAMPLE (1 << (12 - 7))  // sensor resolution: 12-bit
-#define GYRO_DOWNSAMPLE (1 << (16 - 7)) // sensor resolution: 16-bit
-
-  edb_info.averages[which_window].temp = avg[TEMP] / 10; // to degrees
-#ifdef ENABLE_GYRO
-  edb_info.averages[which_window].gx   = avg[GX] / GYRO_DOWNSAMPLE;
-  edb_info.averages[which_window].gy   = avg[GY] / GYRO_DOWNSAMPLE;
-  edb_info.averages[which_window].gz   = avg[GZ] / GYRO_DOWNSAMPLE;
-#endif // ENABLE_GYRO
-  edb_info.averages[which_window].mx   = avg[MX] / MAG_DOWNSAMPLE;
-  edb_info.averages[which_window].my   = avg[MY] / MAG_DOWNSAMPLE;
-  edb_info.averages[which_window].mz   = avg[MZ] / MAG_DOWNSAMPLE;
-
   /*Get the index for this window that we need to update*/
   int win_i = *CHAN_IN2(int, win_i[which_window], CH(task_init,task_update_window), 
                                                   CH(task_update_proxy,task_update_window));
+
+  /* Window average is ready for this window, forward to output, packing, and sending tasks */
+  samp_t win_avg = {
+      .temp = avg[TEMP],
+      .gx = avg[GX],
+      .gy = avg[GY],
+      .gz = avg[GZ],
+      .mx = avg[MX],
+      .my = avg[MY],
+      .mz = avg[MZ]
+  };
+  PRINTF("SEND {T:%i, G:{%i,%i,%i},M:{%i,%i,%i}}\r\n",
+      win_avg.temp,
+      win_avg.gx, win_avg.gy, win_avg.gz,
+      win_avg.mx, win_avg.my, win_avg.mz);
+
+  CHAN_OUT1(samp_t, win_avg[which_window], win_avg,
+            MC_OUT_CH(out, task_update_window, task_output, task_pack));
 
   /*Use window ID and win index to self-chan the average, saving it*/
   //WINGET(which_window,win_i,TEMP)
@@ -587,6 +591,7 @@ void task_update_window(){
   CHAN_OUT1(int, windows[WINGET(which_window,win_i,MX)], avg[MX], CH(task_update_window,task_update_proxy));
   CHAN_OUT1(int, windows[WINGET(which_window,win_i,MY)], avg[MY], CH(task_update_window,task_update_proxy));
   CHAN_OUT1(int, windows[WINGET(which_window,win_i,MZ)], avg[MZ], CH(task_update_window,task_update_proxy));
+
   /*Send self the next win_i for this window*/
   int next_wini = (win_i + 1) % WINDOW_SIZE;
   CHAN_OUT1(int, win_i[which_window], next_wini, CH(task_update_window,task_update_proxy));
@@ -681,33 +686,56 @@ void task_update_window(){
   }
 }
 
-// TODO: we should channel the data to this task, but this is safe too
 void task_output() {
-    unsigned w;
-    for( w = 0; w < NUM_WINDOWS; w++ ){
-      printsamp(edb_info.averages[w].temp,
-                edb_info.averages[w].gx,
-                edb_info.averages[w].gy,
-                edb_info.averages[w].gz,
-                edb_info.averages[w].mx,
-                edb_info.averages[w].my,
-                edb_info.averages[w].mz);
-      LOG("\r\n");
+    for( unsigned w = 0; w < NUM_WINDOWS; w++ ){
+      samp_t win_avg = *CHAN_IN1(samp_t, win_avg[w], MC_IN_CH(out, task_update_window, task_output));
+      PRINTF("OUT %u {T:%i,G:{%i,%i,%i},M:{%i,%i,%i}}\r\n",
+          w, win_avg.temp,
+          win_avg.gx, win_avg.gy, win_avg.gz,
+          win_avg.mx, win_avg.my, win_avg.mz);
     }
-    LOG("-------\r\n");
+    TRANSITION_TO(task_pack);
+}
 
+void task_pack() {
+    pkt_t pkt;
+
+    for( unsigned i = 0; i < PKT_NUM_WINDOWS; i++ ){
+      unsigned w = pkt_window_indexes[i];
+
+      samp_t win_avg = *CHAN_IN1(samp_t, win_avg[w], MC_IN_CH(out, task_update_window, task_output));
+      pkt.windows[w].temp = win_avg.temp; // use full byte
+
+#ifdef ENABLE_GYRO
+      pkt.windows[w].gx = win_avg.gx / GYRO_DOWNSAMPLE_FACTOR;
+      pkt.windows[w].gy = win_avg.gy / GYRO_DOWNSAMPLE_FACTOR;
+      pkt.windows[w].gz = win_avg.gz / GYRO_DOWNSAMPLE_FACTOR;
+#endif // ENABLE_GYRO
+
+      pkt.windows[w].mx = win_avg.mx / MAG_DOWNSAMPLE_FACTOR;
+      pkt.windows[w].my = win_avg.my / MAG_DOWNSAMPLE_FACTOR;
+      pkt.windows[w].mz = win_avg.mz / MAG_DOWNSAMPLE_FACTOR;
+    }
+    CHAN_OUT1(pkt_t, pkt, pkt, CH(task_pack, task_send));
     TRANSITION_TO(task_send);
 }
 
-// TODO: we should channel the data to this task, but this is safe too
 void task_send() {
     WATCHPOINT(WATCHPOINT_OUTPUT);
 
+    pkt_t pkt = *CHAN_IN1(pkt_t, pkt, CH(task_pack, task_send));
+
+    LOG("pkt (len %u): ", sizeof(pkt_t));
+    for (unsigned i = 0; i < sizeof(pkt_t); ++i) {
+        LOG("%02x ", *(((uint8_t *)&pkt) + i));
+    }
+    LOG("\r\n");
+
     uartlink_open_tx();
-    uartlink_send((uint8_t *)&edb_info.averages[0], sizeof(edb_info.averages));
+    uartlink_send((uint8_t *)&pkt, sizeof(pkt_t));
     uartlink_close();
 
-    /*Done with all windows!*/
+    /* Loop back to the beginning */
     TRANSITION_TO(task_sample);
 }
 
