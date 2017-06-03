@@ -1,30 +1,17 @@
 #include <msp430.h>
-#define TF_TEMP_15_30 2982
-#define TF_TEMP_15_85 3515
-#define TLVStruct(x)  *(&(((int*)TLV_ADC12_1_TAG_)[x+1]))
 
-#define INTERNAL1V2 (ADC12VRSEL_1 | REFON | REFVSEL_0)
-#define REF_MASK 0x31
-#define REFV_MASK 0x0F00
-unsigned int CAL_ADC_12T30;
-unsigned int CAL_ADC_12T85;
-float CAL_TEMP_SCALE_100X;
+#include <libio/console.h>
 
-unsigned char sensor_busy = 0;
+  // Table 6-62: ADC12 calibration for 1.2v reference
+#define TLV_CAL30 ((int *)(0x01A1A))
+#define TLV_CAL85 ((int *)(0x01A1C))
 
 void init_temp_sensor() {
-
   return;
-
 }
 
-unsigned int get_calibrated_adc () {
-
-  signed long tmptemp;
-
-  unsigned short *tlv_cal30 = (unsigned short *)(0x01A1A);
-  unsigned short *tlv_cal85 = (unsigned short *)(0x01A1C);
-  
+// Returns temperature in degrees C (approx range -40deg - 85deg)
+int read_temperature_sensor() {
   ADC12CTL0 &= ~ADC12ENC;           // Disable conversions
 
   ADC12CTL3 |= ADC12TCMAP;
@@ -43,27 +30,17 @@ unsigned int get_calibrated_adc () {
   ADC12CTL0 |= ADC12SC;                   // Start conversion
   while (ADC12CTL1 & ADC12BUSY) ;
   
-  tmptemp = (signed long) ADC12MEM0;
+  int sample = ADC12MEM0;
 
   ADC12CTL0 &= ~ADC12ENC;           // Disable conversions
   ADC12CTL0 &= ~(ADC12ON);  // Shutdown ADC12
   REFCTL0 &= ~REFON;
 
-  //#define ADC_TO_dC(_v) (3000 + (int)((85 - 30) * ((100L * ((int)(_v) - t30)) / (long)(t85 - t30))))
-  signed long tempC = (signed long) tmptemp - (signed long) *tlv_cal30;
-  tempC *= 550;
-  tempC /= (signed long) (*tlv_cal85 - *tlv_cal30);
-  tempC += 300;
+  int cal30 = *TLV_CAL30;
+  int cal85 = *TLV_CAL85;
+  int tempC = (sample - cal30) * 55 / (cal85 - cal30) + 30;
 
-  return (signed short) tempC;
+  LOG("sample=%i => T=%i\r\n", sample, tempC);
 
+  return tempC;
 }
-
-signed short read_temperature_sensor() {
-
-  signed short temp = get_calibrated_adc();
-
-  return temp;
-
-}
-
