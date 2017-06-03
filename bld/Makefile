@@ -7,13 +7,13 @@ OBJECTS = \
 	gyro.o \
 
 DEPS += \
-	libmsp \
-	libio \
-	libwispbase \
 	libchain \
 	libmspware \
 	libharvest \
 	libmspuartlink \
+	libedb \
+	libio \
+	libmsp \
 
 override CFLAGS += \
 	-Wno-unused-function \
@@ -31,8 +31,8 @@ export LIBMSP_CLOCK_SOURCE = DCO
 export LIBMSP_DCO_FREQ = $(MAIN_CLOCK_FREQ)
 
 export LIBIO_BACKEND = hwuart
-export LIBMSP_UART_IDX = 0
-export LIBMSP_UART_PIN_TX = 1.5
+export LIBMSP_UART_IDX = 1
+export LIBMSP_UART_PIN_TX = 2.5
 export LIBMSP_UART_BAUDRATE = 115200
 export LIBMSP_UART_CLOCK = SMCLK
 
@@ -64,7 +64,3 @@ export LIBEDB_BOARD_VERSION_MINOR = 2
 else
 $(error BOARD incosistent with libedb board setting)
 endif
-
-include $(LIB_ROOT)/libedb/bld/Makefile.target
-
-include ../Makefile.options

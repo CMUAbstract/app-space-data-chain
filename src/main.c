@@ -7,7 +7,6 @@
 
 #include <libio/console.h>
 #include <libchain/chain.h>
-#include <libwispbase/wisp-base.h>
 #include <libmspware/driverlib.h>
 #include <libmsp/watchdog.h>
 #include <libmsp/clock.h>
