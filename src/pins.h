@@ -53,9 +53,11 @@
 
 #elif defined(BOARD_SPRITE_APP_1_2)
 
-#define     PORT_DBG             2
-#define     PIN_DBG_0            5
-#define     PIN_DBG_1            6
+#define     PORT_DBG_0             4
+#define     PIN_DBG_0              0
+
+#define     PORT_DBG_1             1
+#define     PIN_DBG_1              5
 
 
 #endif // BOARD_*
