@@ -18,8 +18,11 @@
 #define MAGNETOMETER_GAIN_6 0xC0  // 5.6 gauss
 #define MAGNETOMETER_GAIN_7 0xE0  // 8.1 gauss
 
+#define MAGNETOMETER_NUMAVG_1 0x00
+
 #define MAGNETOMETER_MODE_CONTINUOUS_OUTPUT 0x00
 #define MAGNETOMETER_MODE_SINGLE_OUTPUT 0x01
+
 
 typedef struct {
   int x;
