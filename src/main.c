@@ -52,13 +52,13 @@ static const unsigned pkt_window_indexes[] = { 0, NUM_WINDOWS - 1 };
 #define PKT_NUM_WINDOWS (sizeof(pkt_window_indexes) / sizeof(pkt_window_indexes[0]))
 
 typedef struct __attribute__((packed)) {
-    unsigned temp:8;
-    unsigned gx:4;
-    unsigned gy:4;
-    unsigned gz:4;
-    unsigned mx:4;
-    unsigned my:4;
-    unsigned mz:4;
+    int temp:8;
+    int gx:4;
+    int gy:4;
+    int gz:4;
+    int mx:4;
+    int my:4;
+    int mz:4;
 } pkt_win_t;
 
 typedef struct __attribute__((packed)) {
