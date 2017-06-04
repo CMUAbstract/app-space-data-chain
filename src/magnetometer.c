@@ -49,7 +49,7 @@ void magnetometer_init(void) {
   /* Set gain */
   EUSCI_B_I2C_masterSendStart(EUSCI_B0_BASE);
   EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, MAGNETOMETER_CONFIG_REGISTER_B);
-  EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, MAGNETOMETER_GAIN_7);
+  EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, MAGNETOMETER_GAIN_1);
   EUSCI_B_I2C_masterSendMultiByteStop(EUSCI_B0_BASE);
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
 
