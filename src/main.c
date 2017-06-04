@@ -66,11 +66,10 @@ typedef struct __attribute__((packed)) {
 } pkt_t;
 
 #define GYRO_DOWNSAMPLE_FACTOR 4
-#define MAG_DOWNSAMPLE_FACTOR  4
 
 // TODO
-/* downsample to signed 8-bit int: 7-bit of downsampled data */
-// #define MAG_DOWNSAMPLE (1 << (12 - 7))  // sensor resolution: 12-bit
+/* downsample to signed 4-bit int: 4-bit of downsampled data (i.e [-2^3,+2^3])*/
+#define MAG_DOWNSAMPLE_FACTOR (1 << (12 - 4))  // sensor resolution: 12-bit
 // #define GYRO_DOWNSAMPLE (1 << (16 - 7)) // sensor resolution: 16-bit
 
 
@@ -575,6 +574,18 @@ void task_pack() {
       unsigned w = pkt_window_indexes[i];
 
       samp_t win_avg = *CHAN_IN1(samp_t, win_avg[w], MC_IN_CH(out, task_update_window, task_output));
+
+      PRINTF("packing: win %u {T:%03i,"
+#ifdef ENABLE_GYRO
+          "G:{%05i,%05i,%05i},"
+#endif
+          "M:{%05i,%05i,%05i}}\r\n",
+          w, win_avg.temp,
+#ifdef ENABLE_GYRO
+          win_avg.gx, win_avg.gy, win_avg.gz,
+#endif
+          win_avg.mx, win_avg.my, win_avg.mz);
+
       pkt.windows[w].temp = win_avg.temp; // use full byte
 
 #ifdef ENABLE_GYRO
@@ -583,10 +594,42 @@ void task_pack() {
       pkt.windows[w].gz = win_avg.gz / GYRO_DOWNSAMPLE_FACTOR;
 #endif // ENABLE_GYRO
 
+      // Normally, sensor returns a value in [-2048, 2047].
+      // On either overflow, sensor return -4096.
+      //
+      // We shrink the valid range to [-2047,2047] and
+      // reserve -2048 for overflow.
+      if (win_avg.mx == -2048)
+          win_avg.mx = -2047;
+      if (win_avg.my == -2048)
+          win_avg.my = -2047;
+      if (win_avg.mz == -2048)
+          win_avg.mz = -2047;
+
+      if (win_avg.mx == -4096)
+          win_avg.mx = -2048;
+      if (win_avg.my == -4096)
+          win_avg.my = -2048;
+      if (win_avg.mz == -4096)
+          win_avg.mz = -2048;
+
       pkt.windows[w].mx = win_avg.mx / MAG_DOWNSAMPLE_FACTOR;
       pkt.windows[w].my = win_avg.my / MAG_DOWNSAMPLE_FACTOR;
       pkt.windows[w].mz = win_avg.mz / MAG_DOWNSAMPLE_FACTOR;
+
+
+        LOG("scaled: t %i mx %i my %i mz %i\r\n",
+              pkt.windows[w].temp,
+              pkt.windows[w].mx,
+              pkt.windows[w].my,
+              pkt.windows[w].mz);
     }
+
+    LOG("unpacked mag: x %i y %i z %i\r\n",
+        (int)pkt.windows[0].mx * MAG_DOWNSAMPLE_FACTOR,
+        (int)pkt.windows[0].my * MAG_DOWNSAMPLE_FACTOR,
+        (int)pkt.windows[0].mz * MAG_DOWNSAMPLE_FACTOR);
+
     CHAN_OUT1(pkt_t, pkt, pkt, CH(task_pack, task_send));
     TRANSITION_TO(task_send);
 }
