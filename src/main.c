@@ -67,9 +67,14 @@ typedef struct __attribute__((packed)) {
 
 #define GYRO_DOWNSAMPLE_FACTOR 4
 
-// TODO
 /* downsample to signed 4-bit int: 4-bit of downsampled data (i.e [-2^3,+2^3])*/
-#define MAG_DOWNSAMPLE_FACTOR (1 << (12 - 4))  // sensor resolution: 12-bit
+#define PKT_FIELD_MAG_BITS 4
+#define SENSOR_BITS_MAG    12
+#define NOT_FULL_SCALE_FACTOR_MAG 2 /* n, where scaling factor is decreased by 2^n because
+                                       the actual dynamic range of the quantity is smaller than full scale */
+#define MAG_DOWNSAMPLE_FACTOR (1 << (SENSOR_BITS_MAG - PKT_FIELD_MAG_BITS - NOT_FULL_SCALE_FACTOR_MAG))
+
+// TODO
 // #define GYRO_DOWNSAMPLE (1 << (16 - 7)) // sensor resolution: 16-bit
 
 
@@ -618,7 +623,8 @@ void task_pack() {
       pkt.windows[w].mz = win_avg.mz / MAG_DOWNSAMPLE_FACTOR;
 
 
-        LOG("scaled: t %i mx %i my %i mz %i\r\n",
+        LOG("scaled (/ %u): t %i mx %i my %i mz %i\r\n",
+              MAG_DOWNSAMPLE_FACTOR,
               pkt.windows[w].temp,
               pkt.windows[w].mx,
               pkt.windows[w].my,
