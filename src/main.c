@@ -247,7 +247,7 @@ void initializeHardware()
 
     INIT_CONSOLE();
 
-    PRINTF("EDBsat app %u\r\n", 72);
+    LOG("EDBsat app\r\n");
 
     LOG("i2c init\r\n");
     i2c_setup();
@@ -481,7 +481,7 @@ void task_update_window(){
                                                   SELF_IN_CH(task_update_window));
 
   /* Window average is ready for this window, forward to output, packing, and sending tasks */
-  PRINTF("SEND {T:%i,"
+  LOG("SEND {T:%i,"
 #ifdef ENABLE_GYRO
          "G:{%i,%i,%i},"
 #endif // ENABLE_GYRO
@@ -555,7 +555,7 @@ void task_output() {
   LOG("task output\r\n");
     for( unsigned w = 0; w < NUM_WINDOWS; w++ ){
       samp_t win_avg = *CHAN_IN1(samp_t, win_avg[w], MC_IN_CH(out, task_update_window, task_output));
-      PRINTF("OUT %u {T:%03i,"
+      LOG("OUT %u {T:%03i,"
 #ifdef ENABLE_GYRO
           "G:{%05i,%05i,%05i},"
 #endif
@@ -596,7 +596,7 @@ void task_pack() {
 
       samp_t win_avg = *CHAN_IN1(samp_t, win_avg[w], MC_IN_CH(out, task_update_window, task_output));
 
-      PRINTF("packing: win %u {T:%03i,"
+      LOG("packing: win %u {T:%03i,"
 #ifdef ENABLE_GYRO
           "G:{%05i,%05i,%05i},"
 #endif
