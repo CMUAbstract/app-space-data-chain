@@ -4,4 +4,8 @@ ifeq ($(ENABLE_GYRO),1)
 LOCAL_CFLAGS += -DENABLE_GYRO
 endif
 
+ifneq ($(CONFIG_EDB),)
+LOCAL_CFLAGS += -DCONFIG_EDB
+endif
+
 override CFLAGS += $(LOCAL_CFLAGS)
