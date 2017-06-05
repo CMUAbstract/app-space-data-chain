@@ -78,6 +78,8 @@ typedef struct __attribute__((packed)) {
 // #define GYRO_DOWNSAMPLE (1 << (16 - 7)) // sensor resolution: 16-bit
 
 
+static bool mag_ok;
+
 // Channel declarations
 
 struct msg_sample{
@@ -253,7 +255,7 @@ void initializeHardware()
     i2c_setup();
 
     LOG("mag init\r\n");
-    magnetometer_init();
+    mag_ok = magnetometer_init();
 
 #ifdef ENABLE_GYRO
     LOG("gyro init\r\n");
@@ -320,10 +322,16 @@ void read_mag(int *x,
               int *y,
               int *z){
   magnet_t co;
-  magnetometer_read(&co);
-  *x = co.x; 
-  *y = co.y; 
-  *z = co.z; 
+  if (mag_ok) {
+    magnetometer_read(&co);
+    *x = co.x;
+    *y = co.y;
+    *z = co.z;
+  } else {
+    *x = 0;
+    *y = 0;
+    *z = 0;
+  }
 }
 
 /*Collect the next temperature sample

@@ -30,7 +30,7 @@ typedef struct {
   int z;
 } magnet_t;
 
-void magnetometer_init(void);
+bool magnetometer_init(void);
 void magnetometer_read(magnet_t* coordinates);
 
 #endif

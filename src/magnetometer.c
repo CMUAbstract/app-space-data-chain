@@ -10,7 +10,7 @@
 static unsigned char rawMagData[MAG_SAMPLE_LEN];
 static unsigned char magnetometerId[MAG_ID_LEN];
 
-void magnetometer_init(void) {
+bool magnetometer_init(void) {
   int i;
 
   EUSCI_B_I2C_setSlaveAddress(EUSCI_B0_BASE, MAGNETOMETER_SLAVE_ADDRESS);
@@ -34,7 +34,7 @@ void magnetometer_init(void) {
       magnetometerId[0], magnetometerId[1], magnetometerId[2]);
   if (!(magnetometerId[0] == 'H' && magnetometerId[1] == '4' && magnetometerId[2] == '3')) {
     LOG("[mag] error: invalid chip ID\r\n");
-    return;
+    return false;
   }
 
   EUSCI_B_I2C_setMode(EUSCI_B0_BASE, EUSCI_B_I2C_TRANSMIT_MODE);
@@ -57,6 +57,8 @@ void magnetometer_init(void) {
 
   // Wait for analog circuitry to initialize
   msp_sleep(26); // 50ms at ACLK/64=32768/64
+
+  return true;
 }
 
 void magnetometer_read(magnet_t* coordinates) {
