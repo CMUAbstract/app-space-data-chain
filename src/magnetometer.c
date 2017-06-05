@@ -24,10 +24,10 @@ bool magnetometer_init(void) {
   EUSCI_B_I2C_masterReceiveStart(EUSCI_B0_BASE);
   for (i = 0; i < MAG_ID_LEN; i++) {
     if (i == MAG_ID_LEN - 1)
-        EUSCI_B_I2C_masterReceiveMultiByteStop(EUSCI_B0_BASE);
-    magnetometerId[i] = EUSCI_B_I2C_masterReceiveSingle(EUSCI_B0_BASE);
+        magnetometerId[i] = EUSCI_B_I2C_masterReceiveMultiByteFinish(EUSCI_B0_BASE);
+    else
+        magnetometerId[i] = EUSCI_B_I2C_masterReceiveMultiByteNext(EUSCI_B0_BASE);
   }
-  EUSCI_B_I2C_masterReceiveMultiByteStop(EUSCI_B0_BASE);
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
 
   LOG("[mag] chip ID: %c%c%c\r\n",
@@ -42,15 +42,13 @@ bool magnetometer_init(void) {
   /* 1 raw sample per data point, normal measurement mode (MS0 MS1 = 00) */
   EUSCI_B_I2C_masterSendStart(EUSCI_B0_BASE);
   EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, MAGNETOMETER_CONFIG_REGISTER_A);
-  EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, MAGNETOMETER_NUMAVG_1);
-  EUSCI_B_I2C_masterSendMultiByteStop(EUSCI_B0_BASE);
+  EUSCI_B_I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, MAGNETOMETER_NUMAVG_1);
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
 
   /* Set gain */
   EUSCI_B_I2C_masterSendStart(EUSCI_B0_BASE);
   EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, MAGNETOMETER_CONFIG_REGISTER_B);
-  EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, MAGNETOMETER_GAIN_1);
-  EUSCI_B_I2C_masterSendMultiByteStop(EUSCI_B0_BASE);
+  EUSCI_B_I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, MAGNETOMETER_GAIN_1);
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
 
   EUSCI_B_I2C_disable(EUSCI_B0_BASE);
@@ -70,8 +68,7 @@ void magnetometer_read(magnet_t* coordinates) {
   EUSCI_B_I2C_setMode(EUSCI_B0_BASE, EUSCI_B_I2C_TRANSMIT_MODE);
   EUSCI_B_I2C_masterSendStart(EUSCI_B0_BASE);
   EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, MAGNETOMETER_MODE_REGISTER_ADDRESS);
-  EUSCI_B_I2C_masterSendMultiByteNext(EUSCI_B0_BASE, MAGNETOMETER_MODE_SINGLE_OUTPUT);
-  EUSCI_B_I2C_masterSendMultiByteStop(EUSCI_B0_BASE);
+  EUSCI_B_I2C_masterSendMultiByteFinish(EUSCI_B0_BASE, MAGNETOMETER_MODE_SINGLE_OUTPUT);
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
 
   // Wait for sample to be generated
@@ -81,8 +78,9 @@ void magnetometer_read(magnet_t* coordinates) {
   EUSCI_B_I2C_masterReceiveStart(EUSCI_B0_BASE);
   for (i = 0; i < MAG_SAMPLE_LEN; i++) {
     if (i == MAG_SAMPLE_LEN - 1)
-        EUSCI_B_I2C_masterReceiveMultiByteStop(EUSCI_B0_BASE);
-    rawMagData[i] = EUSCI_B_I2C_masterReceiveSingle(EUSCI_B0_BASE);
+        rawMagData[i] = EUSCI_B_I2C_masterReceiveMultiByteFinish(EUSCI_B0_BASE);
+    else
+        rawMagData[i] = EUSCI_B_I2C_masterReceiveMultiByteNext(EUSCI_B0_BASE);
   }
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
   EUSCI_B_I2C_disable(EUSCI_B0_BASE);
