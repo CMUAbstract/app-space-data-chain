@@ -569,6 +569,22 @@ void task_output() {
     TRANSITION_TO(task_pack);
 }
 
+static int scale_mag_sample(int v, int neg_edge, int pos_edge, int overflow)
+{
+  int scaled;
+  if (v == -4096) {
+      scaled = overflow;
+  } else {
+    scaled = v / MAG_DOWNSAMPLE_FACTOR;
+    if (scaled < neg_edge) {
+      scaled = neg_edge;
+    } else if (scaled > pos_edge) {
+      scaled = pos_edge;
+    }
+  }
+  return scaled;
+}
+
 void task_pack() {
 
     LOG("task pack\r\n");
@@ -599,36 +615,30 @@ void task_pack() {
       pkt.windows[w].gz = win_avg.gz / GYRO_DOWNSAMPLE_FACTOR;
 #endif // ENABLE_GYRO
 
+
       // Normally, sensor returns a value in [-2048, 2047].
       // On either overflow, sensor return -4096.
       //
       // We shrink the valid range to [-2047,2047] and
       // reserve -2048 for overflow.
-      if (win_avg.mx == -2048)
-          win_avg.mx = -2047;
-      if (win_avg.my == -2048)
-          win_avg.my = -2047;
-      if (win_avg.mz == -2048)
-          win_avg.mz = -2047;
+      //
+      // Then, we also truncate.
+      int abs_edge = 1 << (PKT_FIELD_MAG_BITS - 1); // -1, ie. div by 2, because signed
+      int neg_edge = -(abs_edge - 1); // reserve for overflow
+      int pos_edge = abs_edge - 1;
+      int overflow = -abs_edge;
+      LOG("scaling: abs %i [%i, %i] ovflw %i\r\n", abs_edge, neg_edge, pos_edge, overflow);
 
-      if (win_avg.mx == -4096)
-          win_avg.mx = -2048;
-      if (win_avg.my == -4096)
-          win_avg.my = -2048;
-      if (win_avg.mz == -4096)
-          win_avg.mz = -2048;
+      pkt.windows[w].mx = scale_mag_sample(win_avg.mx, neg_edge, pos_edge, overflow);
+      pkt.windows[w].my = scale_mag_sample(win_avg.my, neg_edge, pos_edge, overflow);
+      pkt.windows[w].mz = scale_mag_sample(win_avg.mz, neg_edge, pos_edge, overflow);
 
-      pkt.windows[w].mx = win_avg.mx / MAG_DOWNSAMPLE_FACTOR;
-      pkt.windows[w].my = win_avg.my / MAG_DOWNSAMPLE_FACTOR;
-      pkt.windows[w].mz = win_avg.mz / MAG_DOWNSAMPLE_FACTOR;
-
-
-        LOG("scaled (/ %u): t %i mx %i my %i mz %i\r\n",
-              MAG_DOWNSAMPLE_FACTOR,
-              pkt.windows[w].temp,
-              pkt.windows[w].mx,
-              pkt.windows[w].my,
-              pkt.windows[w].mz);
+      LOG("scaled (/ %u): t %i mx %i my %i mz %i\r\n",
+           MAG_DOWNSAMPLE_FACTOR,
+           pkt.windows[w].temp,
+           pkt.windows[w].mx,
+           pkt.windows[w].my,
+           pkt.windows[w].mz);
     }
 
     LOG("unpacked mag: x %i y %i z %i\r\n",
