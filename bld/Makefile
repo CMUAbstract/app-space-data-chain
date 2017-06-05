@@ -67,3 +67,5 @@ export LIBEDB_BOARD_VERSION_MINOR = 2
 else
 $(error BOARD incosistent with libedb board setting)
 endif
+
+include ../Makefile.options
