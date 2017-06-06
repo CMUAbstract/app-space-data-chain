@@ -85,10 +85,10 @@ void magnetometer_read(magnet_t* coordinates) {
   while(EUSCI_B_I2C_isBusBusy(EUSCI_B0_BASE));
   EUSCI_B_I2C_disable(EUSCI_B0_BASE);
 
-  LOG("[mag] raw sample data: ");
+  LOG2("[mag] raw sample data: ");
   for (i = 0; i < MAG_SAMPLE_LEN; ++i)
-      LOG("%02x ", rawMagData[i]);
-  LOG("\r\n");
+      LOG2("%02x ", rawMagData[i]);
+  LOG2("\r\n");
 
   coordinates->x = (rawMagData[0] << 8) | rawMagData[1];
   coordinates->z = (rawMagData[2] << 8) | rawMagData[3];
