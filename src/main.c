@@ -564,11 +564,16 @@ void task_update_window(){
     TRANSITION_TO(task_update_window_start);
   }else{
     /*The last window: output, then go back to sampling*/
+#if VERBOSE > 0
     TRANSITION_TO(task_output);
+#else // VERBOSE
+    TRANSITION_TO(task_pack);
+#endif // VERBOSE
   }
 }
 
 void task_output() {
+#if VERBOSE > 0
   LOG("task output\r\n");
     for( unsigned w = 0; w < NUM_WINDOWS; w++ ){
       samp_t win_avg = *CHAN_IN1(samp_t, win_avg[w], MC_IN_CH(out, task_update_window, task_output));
@@ -583,6 +588,7 @@ void task_output() {
 #endif
           win_avg.mx, win_avg.my, win_avg.mz);
     }
+#endif // VERBOSE
     TRANSITION_TO(task_pack);
 }
 
