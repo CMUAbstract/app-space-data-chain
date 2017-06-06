@@ -17,7 +17,10 @@
 #include "pins.h"
 #include "temp_sensor.h"
 #include "magnetometer.h"
+#if ENABLE_GYRO
 #include "gyro.h"
+#endif // ENABLE_GYRO
+#include "lsm.h"
 
 // Must be after any header that includes mps430.h due to
 // the workround of undef'ing 'OUT' (see pin_assign.h)
@@ -79,6 +82,7 @@ typedef struct __attribute__((packed)) {
 
 
 static bool mag_ok;
+static bool lsm_ok;
 
 // Channel declarations
 
@@ -254,6 +258,9 @@ void initializeHardware()
     LOG("i2c init\r\n");
     i2c_setup();
 
+    LOG("LSM init\r\n");
+    lsm_ok = lsm_init();
+
     LOG("mag init\r\n");
     mag_ok = magnetometer_init();
 
@@ -307,6 +314,7 @@ void task_init()
     TRANSITION_TO(task_sample);
 }
 
+#if ENABLE_GYRO
 void read_gyro(int *x,
                int *y,
                int *z){
@@ -316,6 +324,7 @@ void read_gyro(int *x,
   *y = co.y; 
   *z = co.z; 
 }
+#endif
 
 
 void read_mag(int *x,

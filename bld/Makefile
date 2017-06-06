@@ -4,7 +4,7 @@ OBJECTS = \
 	main.o \
 	temp_sensor.o \
 	magnetometer.o \
-	gyro.o \
+	lsm.o \
 
 DEPS += \
 	libchain \
