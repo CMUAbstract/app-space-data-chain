@@ -17,9 +17,6 @@
 #include "pins.h"
 #include "temp_sensor.h"
 #include "magnetometer.h"
-#if ENABLE_GYRO
-#include "gyro.h"
-#endif // ENABLE_GYRO
 #include "lsm.h"
 
 // Must be after any header that includes mps430.h due to
@@ -59,19 +56,20 @@ static const unsigned pkt_window_indexes[] = { 0, NUM_WINDOWS - 1 };
 
 typedef struct __attribute__((packed)) {
     int temp:8;
-    int gx:4;
-    int gy:4;
-    int gz:4;
     int mx:4;
     int my:4;
     int mz:4;
+    int ax:4;
+    int ay:4;
+    int az:4;
+    int gx:4;
+    int gy:4;
+    int gz:4;
 } pkt_win_t;
 
 typedef struct __attribute__((packed)) {
     pkt_win_t windows[PKT_NUM_WINDOWS];
 } pkt_t;
-
-#define GYRO_DOWNSAMPLE_FACTOR 4
 
 /* downsample to signed 4-bit int: 4-bit of downsampled data (i.e [-2^3,+2^3])*/
 #define PKT_FIELD_MAG_BITS 4
@@ -80,12 +78,32 @@ typedef struct __attribute__((packed)) {
                                        the actual dynamic range of the quantity is smaller than full scale */
 #define MAG_DOWNSAMPLE_FACTOR (1 << (SENSOR_BITS_MAG - PKT_FIELD_MAG_BITS - NOT_FULL_SCALE_FACTOR_MAG))
 
-// TODO
-// #define GYRO_DOWNSAMPLE (1 << (16 - 7)) // sensor resolution: 16-bit
+
+#define PKT_FIELD_ACCEL_BITS 4
+#define SENSOR_BITS_ACCEL    16
+#define NOT_FULL_SCALE_FACTOR_ACCEL 0 /* n, where scaling factor is decreased by 2^n because
+                                       the actual dynamic range of the quantity is smaller than full scale */
+#define ACCEL_DOWNSAMPLE_FACTOR (1 << (SENSOR_BITS_ACCEL - PKT_FIELD_ACCEL_BITS - NOT_FULL_SCALE_FACTOR_ACCEL))
+
+#define ACCEL_MIN  (-(1 << (PKT_FIELD_ACCEL_BITS - 1))) // -1 because signed
+#define ACCEL_MAX  ((1 << (PKT_FIELD_ACCEL_BITS - 1)) - 1) // -1 because signed, -1 because max value
+
+
+#define PKT_FIELD_GYRO_BITS 4
+#define SENSOR_BITS_GYRO    16
+#define NOT_FULL_SCALE_FACTOR_GYRO 1 /* n, where scaling factor is decreased by 2^n because
+                                       the actual dynamic range of the quantity is smaller than full scale */
+#define GYRO_DOWNSAMPLE_FACTOR (1 << (SENSOR_BITS_GYRO - PKT_FIELD_GYRO_BITS - NOT_FULL_SCALE_FACTOR_GYRO))
+
+#define GYRO_MIN  (-(1 << (PKT_FIELD_GYRO_BITS - 1))) // -1 because signed
+#define GYRO_MAX  ((1 << (PKT_FIELD_GYRO_BITS - 1)) - 1) // -1 because signed, -1 because max value
 
 
 static bool mag_ok;
 static bool lsm_ok;
+
+// Put it here instead of on the stack
+static lsm_t lsm_samp;
 
 // Channel declarations
 
@@ -267,27 +285,16 @@ void initializeHardware()
     LOG("LSM init\r\n");
     lsm_ok = lsm_init();
 
-#ifdef ENABLE_GYRO
-    LOG("gyro init\r\n");
-    gyro_init();
-#endif // ENABLE_GYRO
-
     LOG("space app: curtsk %u\r\n", curctx->task->idx);
 }
 
 void print_sample(samp_t *s) {
   LOG("{T:%i,"
-#ifdef ENABLE_GYRO
-      "G:{%i,%i,%i},"
-#endif // ENABLE_GYRO
       "M:{%i,%i,%i},"
       "A:{%i,%i,%i},"
       "G:{%i,%i,%i}"
       "}\r\n",
       s->temp,
-#ifdef ENABLE_GYRO
-      s->gx,s->gy,s->gz,
-#endif // ENABLE_GYRO
       s->mx,s->my,s->mz,
       s->ax, s->ay, s->az,
       s->gx, s->gy, s->gz);
@@ -322,19 +329,6 @@ void task_init()
     TRANSITION_TO(task_sample);
 }
 
-#if ENABLE_GYRO
-void read_gyro(int *x,
-               int *y,
-               int *z){
-  gyro_t co;
-  gyro_read(&co);
-  *x = co.x; 
-  *y = co.y; 
-  *z = co.z; 
-}
-#endif
-
-
 void read_mag(int *x,
               int *y,
               int *z){
@@ -360,7 +354,6 @@ void read_mag(int *x,
   Successors:
       task_window
 */
-lsm_t lsm_samp;
 void task_sample(){
   
   LOG("task sample\r\n");
@@ -369,10 +362,6 @@ void task_sample(){
 
   samp_t sample;
   sample.temp = read_temperature_sensor();
-  
-#ifdef ENABLE_GYRO
-  read_gyro(&(sample.gx),&(sample.gy),&(sample.gz));
-#endif // ENABLE_GYRO
 
   read_mag(&(sample.mx),&(sample.my),&(sample.mz));
 
@@ -461,9 +450,8 @@ void task_update_window_start(){
   // not samp_t because need 32-bit to prevent overflow
   long sum_temp = 0;
   long sum_mx = 0, sum_my = 0, sum_mz = 0;
-#if ENABLE_GYRO
+  long sum_ax = 0, sum_ay = 0, sum_az = 0;
   long sum_gx = 0, sum_gy = 0, sum_gz = 0;
-#endif // ENABLE_GYRO
 
   samp_t avg;
 
@@ -472,26 +460,33 @@ void task_update_window_start(){
       samp_t sample = *CHAN_IN2(samp_t, window[j], CH(task_window, task_update_window_start),
                                                    CH(task_update_window, task_update_window_start));
       sum_temp += sample.temp;
-#ifdef ENABLE_GYRO
-      sum_gx += sample.gx;
-      sum_gy += sample.gy;
-      sum_gz += sample.gz;
-#endif // ENABLE_GYRO
+
       sum_mx += sample.mx;
       sum_my += sample.my;
       sum_mz += sample.mz;
+
+      sum_ax += sample.ax;
+      sum_ay += sample.ay;
+      sum_az += sample.az;
+
+      sum_gx += sample.gx;
+      sum_gy += sample.gy;
+      sum_gz += sample.gz;
   }
   LOG("sum done\r\n");
 
-  avg.temp = sum_temp >> WINDOW_DIV_SHIFT;
-#ifdef ENABLE_GYRO
-  avg.gx = sum_gx >> WINDOW_DIV_SHIFT;
-  avg.gy = sum_gy >> WINDOW_DIV_SHIFT;
-  avg.gz = sum_gz >> WINDOW_DIV_SHIFT;
-#endif // ENABLE_GYRO
-  avg.mx = sum_mx >> WINDOW_DIV_SHIFT;
-  avg.my = sum_my >> WINDOW_DIV_SHIFT;
-  avg.mz = sum_mz >> WINDOW_DIV_SHIFT;
+  avg.temp = sum_temp / WINDOW_SIZE;
+  avg.mx = sum_mx / WINDOW_SIZE;
+  avg.my = sum_my / WINDOW_SIZE;
+  avg.mz = sum_mz / WINDOW_SIZE;
+
+  avg.ax = sum_ax / WINDOW_SIZE;
+  avg.ay = sum_ay / WINDOW_SIZE;
+  avg.az = sum_az / WINDOW_SIZE;
+
+  avg.gx = sum_gx / WINDOW_SIZE;
+  avg.gy = sum_gy / WINDOW_SIZE;
+  avg.gz = sum_gz / WINDOW_SIZE;
 
   LOG("avg: "); print_sample(&avg);
 
@@ -516,14 +511,12 @@ void task_update_window(){
 
   /* Window average is ready for this window, forward to output, packing, and sending tasks */
   LOG("SEND {T:%i,"
-#ifdef ENABLE_GYRO
-         "G:{%i,%i,%i},"
-#endif // ENABLE_GYRO
-         "M:{%i,%i,%i}}\r\n",
+         "M:{%i,%i,%i},"
+         "A:{%i,%i,%i},"
+         "G:{%i,%i,%i}\r\n",
       avg.temp,
-#ifdef ENABLE_GYRO
+      avg.ax, avg.ay, avg.az,
       avg.gx, avg.gy, avg.gz,
-#endif // ENABLE_GYRO
       avg.mx, avg.my, avg.mz);
 
   CHAN_OUT1(samp_t, win_avg[which_window], avg,
@@ -595,15 +588,13 @@ void task_output() {
     for( unsigned w = 0; w < NUM_WINDOWS; w++ ){
       samp_t win_avg = *CHAN_IN1(samp_t, win_avg[w], MC_IN_CH(out, task_update_window, task_output));
       LOG("OUT %u {T:%03i,"
-#ifdef ENABLE_GYRO
-          "G:{%05i,%05i,%05i},"
-#endif
-          "M:{%05i,%05i,%05i}}\r\n",
+          "M:{%05i,%05i,%05i}},"
+          "A:{%05i,%05i,%05i}},"
+          "G:{%05i,%05i,%05i}\r\n",
           w, win_avg.temp,
-#ifdef ENABLE_GYRO
-          win_avg.gx, win_avg.gy, win_avg.gz,
-#endif
-          win_avg.mx, win_avg.my, win_avg.mz);
+          win_avg.mx, win_avg.my, win_avg.mz,
+          win_avg.ax, win_avg.ay, win_avg.az,
+          win_avg.gx, win_avg.gy, win_avg.gz);
     }
 #endif // VERBOSE
     TRANSITION_TO(task_pack);
@@ -625,6 +616,16 @@ static int scale_mag_sample(int v, int neg_edge, int pos_edge, int overflow)
   return scaled;
 }
 
+static int scale_lsm_sample(int v, int factor, int min, int max)
+{
+  v /= factor;
+  if (v < min)
+    v = min;
+  if (v > max)
+    v = max;
+  return v;
+}
+
 void task_pack() {
 
     LOG("task pack\r\n");
@@ -637,23 +638,16 @@ void task_pack() {
       samp_t win_avg = *CHAN_IN1(samp_t, win_avg[w], MC_IN_CH(out, task_update_window, task_output));
 
       LOG("packing: win %u {T:%03i,"
-#ifdef ENABLE_GYRO
-          "G:{%05i,%05i,%05i},"
-#endif
-          "M:{%05i,%05i,%05i}}\r\n",
+          "M:{%05i,%05i,%05i}}"
+          "A:{%05i,%05i,%05i},"
+          "G:{%05i,%05i,%05i}\r\n",
           w, win_avg.temp,
-#ifdef ENABLE_GYRO
-          win_avg.gx, win_avg.gy, win_avg.gz,
-#endif
-          win_avg.mx, win_avg.my, win_avg.mz);
+          win_avg.mx, win_avg.my, win_avg.mz,
+          win_avg.ax, win_avg.ay, win_avg.az,
+          win_avg.gx, win_avg.gy, win_avg.gz);
 
       pkt.windows[w].temp = win_avg.temp; // use full byte
 
-#ifdef ENABLE_GYRO
-      pkt.windows[w].gx = win_avg.gx / GYRO_DOWNSAMPLE_FACTOR;
-      pkt.windows[w].gy = win_avg.gy / GYRO_DOWNSAMPLE_FACTOR;
-      pkt.windows[w].gz = win_avg.gz / GYRO_DOWNSAMPLE_FACTOR;
-#endif // ENABLE_GYRO
 
 
       // Normally, sensor returns a value in [-2048, 2047].
@@ -673,18 +667,33 @@ void task_pack() {
       pkt.windows[w].my = scale_mag_sample(win_avg.my, neg_edge, pos_edge, overflow);
       pkt.windows[w].mz = scale_mag_sample(win_avg.mz, neg_edge, pos_edge, overflow);
 
-      LOG("scaled (/ %u): t %i mx %i my %i mz %i\r\n",
+      // Accel and gyro are simple (since there's no special overflow value)
+      pkt.windows[w].ax = scale_lsm_sample(win_avg.ax, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
+      pkt.windows[w].ay = scale_lsm_sample(win_avg.ay, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
+      pkt.windows[w].az = scale_lsm_sample(win_avg.az, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
+      pkt.windows[w].gx = scale_lsm_sample(win_avg.gx, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
+      pkt.windows[w].gy = scale_lsm_sample(win_avg.gy, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
+      pkt.windows[w].gz = scale_lsm_sample(win_avg.gz, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
+
+      LOG("scaled (/ %u): t %i | mx %i my %i mz %i | ax %i ay %i az %i | gx %i gy %i gz %i\r\n",
            MAG_DOWNSAMPLE_FACTOR,
            pkt.windows[w].temp,
-           pkt.windows[w].mx,
-           pkt.windows[w].my,
-           pkt.windows[w].mz);
+           pkt.windows[w].mx, pkt.windows[w].my, pkt.windows[w].mz,
+           pkt.windows[w].ax, pkt.windows[w].ay, pkt.windows[w].az,
+           pkt.windows[w].gx, pkt.windows[w].gy, pkt.windows[w].gz);
     }
 
-    LOG("unpacked mag: x %i y %i z %i\r\n",
+    LOG("unpacked: t %i | mx %i my %i mz %i | ax %i ay %i az %i | gx %i gy %i gz %i\r\n",
+        (int)pkt.windows[0].temp,
         (int)pkt.windows[0].mx * MAG_DOWNSAMPLE_FACTOR,
         (int)pkt.windows[0].my * MAG_DOWNSAMPLE_FACTOR,
-        (int)pkt.windows[0].mz * MAG_DOWNSAMPLE_FACTOR);
+        (int)pkt.windows[0].mz * MAG_DOWNSAMPLE_FACTOR,
+        (int)pkt.windows[0].ax * ACCEL_DOWNSAMPLE_FACTOR,
+        (int)pkt.windows[0].ay * ACCEL_DOWNSAMPLE_FACTOR,
+        (int)pkt.windows[0].az * ACCEL_DOWNSAMPLE_FACTOR,
+        (int)pkt.windows[0].gx * GYRO_DOWNSAMPLE_FACTOR,
+        (int)pkt.windows[0].gy * GYRO_DOWNSAMPLE_FACTOR,
+        (int)pkt.windows[0].gz * GYRO_DOWNSAMPLE_FACTOR);
 
     CHAN_OUT1(pkt_t, pkt, pkt, CH(task_pack, task_send));
     TRANSITION_TO(task_send);
