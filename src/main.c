@@ -40,12 +40,15 @@
 
 typedef struct _samp_t{
   int temp;
-  int gx;
-  int gy;
-  int gz;
   int mx;
   int my;
   int mz;
+  int ax;
+  int ay;
+  int az;
+  int gx;
+  int gy;
+  int gz;
 } samp_t;
 
 // Type for pkt sent over the radio (via UART)
@@ -258,11 +261,11 @@ void initializeHardware()
     LOG("i2c init\r\n");
     i2c_setup();
 
-    LOG("LSM init\r\n");
-    lsm_ok = lsm_init();
-
     LOG("mag init\r\n");
     mag_ok = magnetometer_init();
+
+    LOG("LSM init\r\n");
+    lsm_ok = lsm_init();
 
 #ifdef ENABLE_GYRO
     LOG("gyro init\r\n");
@@ -277,12 +280,17 @@ void print_sample(samp_t *s) {
 #ifdef ENABLE_GYRO
       "G:{%i,%i,%i},"
 #endif // ENABLE_GYRO
-      "M:{%i,%i,%i}}\r\n",
+      "M:{%i,%i,%i},"
+      "A:{%i,%i,%i},"
+      "G:{%i,%i,%i}"
+      "}\r\n",
       s->temp,
 #ifdef ENABLE_GYRO
       s->gx,s->gy,s->gz,
 #endif // ENABLE_GYRO
-      s->mx,s->my,s->mz);
+      s->mx,s->my,s->mz,
+      s->ax, s->ay, s->az,
+      s->gx, s->gy, s->gz);
 }
 
 
@@ -352,6 +360,7 @@ void read_mag(int *x,
   Successors:
       task_window
 */
+lsm_t lsm_samp;
 void task_sample(){
   
   LOG("task sample\r\n");
@@ -366,6 +375,14 @@ void task_sample(){
 #endif // ENABLE_GYRO
 
   read_mag(&(sample.mx),&(sample.my),&(sample.mz));
+
+  lsm_sample(&lsm_samp);
+  sample.ax = lsm_samp.ax;
+  sample.ay = lsm_samp.ay;
+  sample.az = lsm_samp.az;
+  sample.gx = lsm_samp.gx;
+  sample.gy = lsm_samp.gy;
+  sample.gz = lsm_samp.gz;
   
   CHAN_OUT1(samp_t, sample, sample, CH(task_sample, task_window));
   LOG("sampled: "); print_sample(&sample);
