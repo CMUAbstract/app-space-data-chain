@@ -13,6 +13,7 @@ static unsigned char magnetometerId[MAG_ID_LEN];
 bool magnetometer_init(void) {
   int i;
 
+  EUSCI_B_I2C_disable(EUSCI_B0_BASE);
   EUSCI_B_I2C_setSlaveAddress(EUSCI_B0_BASE, MAGNETOMETER_SLAVE_ADDRESS);
   EUSCI_B_I2C_enable(EUSCI_B0_BASE);
 
@@ -62,6 +63,7 @@ bool magnetometer_init(void) {
 void magnetometer_read(magnet_t* coordinates) {
   int i;
 
+  EUSCI_B_I2C_disable(EUSCI_B0_BASE);
   EUSCI_B_I2C_setSlaveAddress(EUSCI_B0_BASE, MAGNETOMETER_SLAVE_ADDRESS);
   EUSCI_B_I2C_enable(EUSCI_B0_BASE);
 
