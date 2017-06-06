@@ -16,6 +16,7 @@
 #define LSM_ODR_XL_52_HZ    0x30
 
 #define LSM_ODR_G_52_HZ    0x30
+#define LSM_FS_125         0x02 /* minimum */
 
 #define LSM_WHO_AM_I 0x69
 
@@ -79,7 +80,7 @@ bool lsm_init()
   LOG("LSM id: 0x%02x\r\n", id);
 
   set_reg(LSM_REG_CTRL1_XL, LSM_ODR_XL_52_HZ);
-  set_reg(LSM_REG_CTRL2_G, LSM_ODR_G_52_HZ);
+  set_reg(LSM_REG_CTRL2_G, LSM_ODR_G_52_HZ | LSM_FS_125);
 
   return true;
 }
