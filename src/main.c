@@ -646,9 +646,7 @@ void task_pack() {
           win_avg.ax, win_avg.ay, win_avg.az,
           win_avg.gx, win_avg.gy, win_avg.gz);
 
-      pkt.windows[w].temp = win_avg.temp; // use full byte
-
-
+      pkt.windows[i].temp = win_avg.temp; // use full byte
 
       // Normally, sensor returns a value in [-2048, 2047].
       // On either overflow, sensor return -4096.
@@ -663,37 +661,40 @@ void task_pack() {
       int overflow = -abs_edge;
       LOG("scaling: abs %i [%i, %i] ovflw %i\r\n", abs_edge, neg_edge, pos_edge, overflow);
 
-      pkt.windows[w].mx = scale_mag_sample(win_avg.mx, neg_edge, pos_edge, overflow);
-      pkt.windows[w].my = scale_mag_sample(win_avg.my, neg_edge, pos_edge, overflow);
-      pkt.windows[w].mz = scale_mag_sample(win_avg.mz, neg_edge, pos_edge, overflow);
+      pkt.windows[i].mx = scale_mag_sample(win_avg.mx, neg_edge, pos_edge, overflow);
+      pkt.windows[i].my = scale_mag_sample(win_avg.my, neg_edge, pos_edge, overflow);
+      pkt.windows[i].mz = scale_mag_sample(win_avg.mz, neg_edge, pos_edge, overflow);
 
       // Accel and gyro are simple (since there's no special overflow value)
-      pkt.windows[w].ax = scale_lsm_sample(win_avg.ax, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
-      pkt.windows[w].ay = scale_lsm_sample(win_avg.ay, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
-      pkt.windows[w].az = scale_lsm_sample(win_avg.az, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
-      pkt.windows[w].gx = scale_lsm_sample(win_avg.gx, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
-      pkt.windows[w].gy = scale_lsm_sample(win_avg.gy, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
-      pkt.windows[w].gz = scale_lsm_sample(win_avg.gz, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
-
+      pkt.windows[i].ax = scale_lsm_sample(win_avg.ax, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
+      pkt.windows[i].ay = scale_lsm_sample(win_avg.ay, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
+      pkt.windows[i].az = scale_lsm_sample(win_avg.az, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
+      pkt.windows[i].gx = scale_lsm_sample(win_avg.gx, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
+      pkt.windows[i].gy = scale_lsm_sample(win_avg.gy, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
+      pkt.windows[i].gz = scale_lsm_sample(win_avg.gz, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
       LOG("scaled (/ %u): t %i | mx %i my %i mz %i | ax %i ay %i az %i | gx %i gy %i gz %i\r\n",
            MAG_DOWNSAMPLE_FACTOR,
-           pkt.windows[w].temp,
-           pkt.windows[w].mx, pkt.windows[w].my, pkt.windows[w].mz,
-           pkt.windows[w].ax, pkt.windows[w].ay, pkt.windows[w].az,
-           pkt.windows[w].gx, pkt.windows[w].gy, pkt.windows[w].gz);
-    }
+           pkt.windows[i].temp,
+           pkt.windows[i].mx, pkt.windows[w].my, pkt.windows[w].mz,
+           pkt.windows[i].ax, pkt.windows[w].ay, pkt.windows[w].az
+           ,pkt.windows[i].gx, pkt.windows[w].gy, pkt.windows[w].gz
+           );
 
-    LOG("unpacked: t %i | mx %i my %i mz %i | ax %i ay %i az %i | gx %i gy %i gz %i\r\n",
-        (int)pkt.windows[0].temp,
-        (int)pkt.windows[0].mx * MAG_DOWNSAMPLE_FACTOR,
-        (int)pkt.windows[0].my * MAG_DOWNSAMPLE_FACTOR,
-        (int)pkt.windows[0].mz * MAG_DOWNSAMPLE_FACTOR,
-        (int)pkt.windows[0].ax * ACCEL_DOWNSAMPLE_FACTOR,
-        (int)pkt.windows[0].ay * ACCEL_DOWNSAMPLE_FACTOR,
-        (int)pkt.windows[0].az * ACCEL_DOWNSAMPLE_FACTOR,
-        (int)pkt.windows[0].gx * GYRO_DOWNSAMPLE_FACTOR,
-        (int)pkt.windows[0].gy * GYRO_DOWNSAMPLE_FACTOR,
-        (int)pkt.windows[0].gz * GYRO_DOWNSAMPLE_FACTOR);
+        LOG("unpacked: t %i | mx %i my %i mz %i | ax %i ay %i az %i "
+            "| gx %i gy %i gz %i"
+            "\r\n",
+            (int)pkt.windows[i].temp,
+            (int)pkt.windows[i].mx * MAG_DOWNSAMPLE_FACTOR,
+            (int)pkt.windows[i].my * MAG_DOWNSAMPLE_FACTOR,
+            (int)pkt.windows[i].mz * MAG_DOWNSAMPLE_FACTOR,
+            (int)pkt.windows[i].ax * ACCEL_DOWNSAMPLE_FACTOR,
+            (int)pkt.windows[i].ay * ACCEL_DOWNSAMPLE_FACTOR,
+            (int)pkt.windows[i].az * ACCEL_DOWNSAMPLE_FACTOR
+            ,(int)pkt.windows[i].gx * GYRO_DOWNSAMPLE_FACTOR
+            ,(int)pkt.windows[i].gy * GYRO_DOWNSAMPLE_FACTOR
+            ,(int)pkt.windows[i].gz * GYRO_DOWNSAMPLE_FACTOR
+            );
+    }
 
     CHAN_OUT1(pkt_t, pkt, pkt, CH(task_pack, task_send));
     TRANSITION_TO(task_send);
