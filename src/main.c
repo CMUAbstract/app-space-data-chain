@@ -662,6 +662,11 @@ void task_pack() {
 
     pkt_t pkt;
 
+    // zero-out
+    for (unsigned i = 0; i < sizeof(pkt_t); ++i) {
+        *(((uint8_t *)&pkt) + i) = 0x0;
+    }
+
     for( unsigned i = 0; i < PKT_NUM_WINDOWS; i++ ){
       unsigned w = pkt_window_indexes[i];
 
