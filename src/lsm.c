@@ -18,10 +18,17 @@
 #define LSM_ODR_G_52_HZ    0x30
 #define LSM_FS_125         0x02 /* minimum */
 
+#ifdef ENABLE_GYRO
+#define FIRST_DATA_REG     LSM_REG_OUTX_L_G
+#define SAMPLE_LEN 12
+#else // !ENABLE_GYRO
+#define FIRST_DATA_REG     LSM_REG_OUTX_L_XL
+#define SAMPLE_LEN 6
+#endif // !ENABLE_GYRO
+
 #define LSM_WHO_AM_I 0x69
 
 #define SAMPLE_PERIOD 10 /* @ 52Hz (must match ODR setting): ~20ms in ACLK/64 */
-#define SAMPLE_LEN 12
 
 static uint8_t sample_bytes[SAMPLE_LEN];
 
@@ -80,7 +87,9 @@ bool lsm_init()
   LOG("LSM id: 0x%02x\r\n", id);
 
   set_reg(LSM_REG_CTRL1_XL, LSM_ODR_XL_52_HZ);
+#ifdef ENABLE_GYRO
   set_reg(LSM_REG_CTRL2_G, LSM_ODR_G_52_HZ | LSM_FS_125);
+#endif // ENABLE_GYRO
 
   return true;
 }
@@ -102,7 +111,7 @@ void lsm_sample(lsm_t *sample) {
   while((UCB0CTLW0 & UCTXSTT));
 
   while(!(UCB0IFG & UCTXIFG));
-  UCB0TXBUF = LSM_REG_OUTX_L_G;
+  UCB0TXBUF = FIRST_DATA_REG;
   while(!(UCB0IFG & UCTXIFG));
 
   UCB0CTLW0 &= ~UCTR; // receive mode
@@ -126,15 +135,27 @@ void lsm_sample(lsm_t *sample) {
   }
   LOG2("\r\n");
 
+#ifdef ENABLE_GYRO
   sample->gx = ( sample_bytes[1] << 8) | sample_bytes[0];
   sample->gy = ( sample_bytes[3] << 8) | sample_bytes[2];
   sample->gz = ( sample_bytes[5] << 8) | sample_bytes[4];
   sample->ax = ( sample_bytes[7] << 8) | sample_bytes[6];
   sample->ay = ( sample_bytes[9] << 8) | sample_bytes[8];
   sample->az = (sample_bytes[11] << 8) | sample_bytes[10];
+#else // !ENABLE_GYRO
+  sample->ax = ( sample_bytes[1] << 8) | sample_bytes[0];
+  sample->ay = ( sample_bytes[3] << 8) | sample_bytes[2];
+  sample->az = ( sample_bytes[5] << 8) | sample_bytes[4];
+#endif // ENABLE_GYRO
 
-  LOG("[lsm] sample: ax %i ay %i az %i gx %i gy %i gz %i\r\n",
-      sample->ax, sample->ay, sample->az,
-      sample->gx, sample->gy, sample->gz);
-
+  LOG("[lsm] sample: ax %i ay %i az %i"
+#ifdef ENABLE_GYRO
+      " gx %i gy %i gz %i"
+#endif // ENABLE_GYRO
+      "\r\n",
+      sample->ax, sample->ay, sample->az
+#ifdef ENABLE_GYRO
+      ,sample->gx, sample->gy, sample->gz
+#endif // ENABLE_GYRO
+      );
 }

@@ -43,9 +43,11 @@ typedef struct _samp_t{
   int ax;
   int ay;
   int az;
+#ifdef ENABLE_GYRO
   int gx;
   int gy;
   int gz;
+#endif // ENABLE_GYRO
 } samp_t;
 
 // Type for pkt sent over the radio (via UART)
@@ -62,9 +64,11 @@ typedef struct __attribute__((packed)) {
     int ax:4;
     int ay:4;
     int az:4;
+#ifdef ENABLE_GYRO
     int gx:4;
     int gy:4;
     int gz:4;
+#endif // ENABLE_GYRO
 } pkt_win_t;
 
 typedef struct __attribute__((packed)) {
@@ -292,12 +296,17 @@ void print_sample(samp_t *s) {
   LOG("{T:%i,"
       "M:{%i,%i,%i},"
       "A:{%i,%i,%i},"
+#ifdef ENABLE_GYRO
       "G:{%i,%i,%i}"
+#endif // ENABLE_GYRO
       "}\r\n",
       s->temp,
       s->mx,s->my,s->mz,
-      s->ax, s->ay, s->az,
-      s->gx, s->gy, s->gz);
+      s->ax, s->ay, s->az
+#ifdef ENABLE_GYRO
+      ,s->gx, s->gy, s->gz
+#endif // ENABLE_GYRO
+      );
 }
 
 
@@ -366,12 +375,15 @@ void task_sample(){
   read_mag(&(sample.mx),&(sample.my),&(sample.mz));
 
   lsm_sample(&lsm_samp);
+
   sample.ax = lsm_samp.ax;
   sample.ay = lsm_samp.ay;
   sample.az = lsm_samp.az;
+#ifdef ENABLE_GYRO
   sample.gx = lsm_samp.gx;
   sample.gy = lsm_samp.gy;
   sample.gz = lsm_samp.gz;
+#endif // ENABLE_GYRO
   
   CHAN_OUT1(samp_t, sample, sample, CH(task_sample, task_window));
   LOG("sampled: "); print_sample(&sample);
@@ -451,7 +463,9 @@ void task_update_window_start(){
   long sum_temp = 0;
   long sum_mx = 0, sum_my = 0, sum_mz = 0;
   long sum_ax = 0, sum_ay = 0, sum_az = 0;
+#ifdef ENABLE_GYRO
   long sum_gx = 0, sum_gy = 0, sum_gz = 0;
+#endif // ENABLE_GYRO
 
   samp_t avg;
 
@@ -469,9 +483,11 @@ void task_update_window_start(){
       sum_ay += sample.ay;
       sum_az += sample.az;
 
+#ifdef ENABLE_GYRO
       sum_gx += sample.gx;
       sum_gy += sample.gy;
       sum_gz += sample.gz;
+#endif // ENABLE_GYRO
   }
   LOG("sum done\r\n");
 
@@ -484,9 +500,11 @@ void task_update_window_start(){
   avg.ay = sum_ay / WINDOW_SIZE;
   avg.az = sum_az / WINDOW_SIZE;
 
+#ifdef ENABLE_GYRO
   avg.gx = sum_gx / WINDOW_SIZE;
   avg.gy = sum_gy / WINDOW_SIZE;
   avg.gz = sum_gz / WINDOW_SIZE;
+#endif // ENABLE_GYRO
 
   LOG("avg: "); print_sample(&avg);
 
@@ -513,11 +531,17 @@ void task_update_window(){
   LOG("SEND {T:%i,"
          "M:{%i,%i,%i},"
          "A:{%i,%i,%i},"
-         "G:{%i,%i,%i}\r\n",
+#ifdef ENABLE_GYRO
+         "G:{%i,%i,%i}"
+#endif // ENABLE_GYRO
+         "\r\n",
       avg.temp,
-      avg.ax, avg.ay, avg.az,
-      avg.gx, avg.gy, avg.gz,
-      avg.mx, avg.my, avg.mz);
+      avg.mx, avg.my, avg.mz,
+      avg.ax, avg.ay, avg.az
+#ifdef ENABLE_GYRO
+      ,avg.gx, avg.gy, avg.gz
+#endif // ENABLE_GYRO
+      );
 
   CHAN_OUT1(samp_t, win_avg[which_window], avg,
             MC_OUT_CH(out, task_update_window, task_output, task_pack));
@@ -590,11 +614,17 @@ void task_output() {
       LOG("OUT %u {T:%03i,"
           "M:{%05i,%05i,%05i}},"
           "A:{%05i,%05i,%05i}},"
-          "G:{%05i,%05i,%05i}\r\n",
+#ifdef ENABLE_GYRO
+          "G:{%05i,%05i,%05i}"
+#endif // ENABLE_GYRO
+          "\r\n",
           w, win_avg.temp,
           win_avg.mx, win_avg.my, win_avg.mz,
-          win_avg.ax, win_avg.ay, win_avg.az,
-          win_avg.gx, win_avg.gy, win_avg.gz);
+          win_avg.ax, win_avg.ay, win_avg.az
+#ifdef ENABLE_GYRO
+          ,win_avg.gx, win_avg.gy, win_avg.gz
+#endif // ENABLE_GYRO
+          );
     }
 #endif // VERBOSE
     TRANSITION_TO(task_pack);
@@ -640,11 +670,17 @@ void task_pack() {
       LOG("packing: win %u {T:%03i,"
           "M:{%05i,%05i,%05i}}"
           "A:{%05i,%05i,%05i},"
-          "G:{%05i,%05i,%05i}\r\n",
+#ifdef ENABLE_GYRO
+          "G:{%05i,%05i,%05i}"
+#endif // ENABLE_GYRO
+          "\r\n",
           w, win_avg.temp,
           win_avg.mx, win_avg.my, win_avg.mz,
-          win_avg.ax, win_avg.ay, win_avg.az,
-          win_avg.gx, win_avg.gy, win_avg.gz);
+          win_avg.ax, win_avg.ay, win_avg.az
+#ifdef ENABLE_GYRO
+          ,win_avg.gx, win_avg.gy, win_avg.gz
+#endif // ENABLE_GYRO
+          );
 
       pkt.windows[i].temp = win_avg.temp; // use full byte
 
@@ -669,19 +705,30 @@ void task_pack() {
       pkt.windows[i].ax = scale_lsm_sample(win_avg.ax, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
       pkt.windows[i].ay = scale_lsm_sample(win_avg.ay, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
       pkt.windows[i].az = scale_lsm_sample(win_avg.az, ACCEL_DOWNSAMPLE_FACTOR, ACCEL_MIN, ACCEL_MAX);
+#ifdef ENABLE_GYRO
       pkt.windows[i].gx = scale_lsm_sample(win_avg.gx, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
       pkt.windows[i].gy = scale_lsm_sample(win_avg.gy, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
       pkt.windows[i].gz = scale_lsm_sample(win_avg.gz, GYRO_DOWNSAMPLE_FACTOR, GYRO_MIN, GYRO_MAX);
-      LOG("scaled (/ %u): t %i | mx %i my %i mz %i | ax %i ay %i az %i | gx %i gy %i gz %i\r\n",
+#endif // ENABLE_GYRO
+
+      LOG("scaled (/ %u): t %i | mx %i my %i mz %i | ax %i ay %i az %i "
+#ifdef ENABLE_GYRO
+          "| gx %i gy %i gz %i"
+#endif // ENABLE_GYRO
+          "\r\n",
            MAG_DOWNSAMPLE_FACTOR,
            pkt.windows[i].temp,
            pkt.windows[i].mx, pkt.windows[w].my, pkt.windows[w].mz,
            pkt.windows[i].ax, pkt.windows[w].ay, pkt.windows[w].az
+#ifdef ENABLE_GYRO
            ,pkt.windows[i].gx, pkt.windows[w].gy, pkt.windows[w].gz
+#endif // ENABLE_GYRO
            );
 
         LOG("unpacked: t %i | mx %i my %i mz %i | ax %i ay %i az %i "
+#ifdef ENABLE_GYRO
             "| gx %i gy %i gz %i"
+#endif // ENABLE_GYRO
             "\r\n",
             (int)pkt.windows[i].temp,
             (int)pkt.windows[i].mx * MAG_DOWNSAMPLE_FACTOR,
@@ -690,9 +737,11 @@ void task_pack() {
             (int)pkt.windows[i].ax * ACCEL_DOWNSAMPLE_FACTOR,
             (int)pkt.windows[i].ay * ACCEL_DOWNSAMPLE_FACTOR,
             (int)pkt.windows[i].az * ACCEL_DOWNSAMPLE_FACTOR
+#ifdef ENABLE_GYRO
             ,(int)pkt.windows[i].gx * GYRO_DOWNSAMPLE_FACTOR
             ,(int)pkt.windows[i].gy * GYRO_DOWNSAMPLE_FACTOR
             ,(int)pkt.windows[i].gz * GYRO_DOWNSAMPLE_FACTOR
+#endif // ENABLE_GYRO
             );
     }
 
