@@ -723,10 +723,10 @@ void task_pack() {
           "\r\n",
            MAG_DOWNSAMPLE_FACTOR,
            pkt.windows[i].temp,
-           pkt.windows[i].mx, pkt.windows[w].my, pkt.windows[w].mz,
-           pkt.windows[i].ax, pkt.windows[w].ay, pkt.windows[w].az
+           pkt.windows[i].mx, pkt.windows[i].my, pkt.windows[i].mz,
+           pkt.windows[i].ax, pkt.windows[i].ay, pkt.windows[i].az
 #ifdef ENABLE_GYRO
-           ,pkt.windows[i].gx, pkt.windows[w].gy, pkt.windows[w].gz
+           ,pkt.windows[i].gx, pkt.windows[i].gy, pkt.windows[i].gz
 #endif // ENABLE_GYRO
            );
 
