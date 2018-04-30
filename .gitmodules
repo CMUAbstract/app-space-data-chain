@@ -1,27 +1,27 @@
 [submodule "ext/maker"]
 	path = ext/maker
-	url = /afs/ece.cmu.edu/project/abstract/repos/maker
+	url = https://github.com/CMUAbstract/maker
 [submodule "ext/libio"]
 	path = ext/libio
-	url = /afs/ece.cmu.edu/project/abstract/repos/libio
+	url = https://github.com/CMUAbstract/libio
 [submodule "ext/libchain"]
 	path = ext/libchain
-	url = /afs/ece.cmu.edu/project/abstract/repos/libchain
+	url = https://github.com/CMUAbstract/libchain
 [submodule "ext/libmsp"]
 	path = ext/libmsp
-	url = /afs/ece.cmu.edu/project/abstract/repos/libmsp
+	url = https://github.com/CMUAbstract/libmsp
 [submodule "ext/msp430-softuart"]
 	path = ext/libmspsoftuart
-	url = /afs/ece.cmu.edu/project/abstract/repos/msp430-softuart
+	url = https://github.com/CMUAbstract/msp430-softuart
 [submodule "ext/libmspware"]
 	path = ext/libmspware
-	url = /afs/ece.cmu.edu/project/abstract/repos/libmspware
+	url = https://github.com/CMUAbstract/libmspware
 [submodule "ext/libedb"]
 	path = ext/libedb
-	url = /afs/ece.cmu.edu/project/abstract/repos/edb/libedb
+	url = https://github.com/CMUAbstract/libedb
 [submodule "ext/libharvest"]
 	path = ext/libharvest
-	url = /afs/ece.cmu.edu/project/abstract/repos/libharvest
+	url = https://github.com/CMUAbstract/libharvest
 [submodule "ext/libmspuartlink"]
 	path = ext/libmspuartlink
-	url = /afs/ece.cmu.edu/project/abstract/repos/libmspuartlink
+	url = https://github.com/CMUAbstract/libmspuartlink
