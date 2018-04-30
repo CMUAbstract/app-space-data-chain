@@ -40,7 +40,11 @@ int read_temperature_sensor() {
 
   int cal30 = *TLV_CAL30;
   int cal85 = *TLV_CAL85;
+#if 0 // TODO: mspgcc v5 has trouble finding multiplier builtin?
   int tempC = (sample - cal30) * 55 / (cal85 - cal30) + 30;
+#else
+  int tempC = 0;
+#endif
 
   LOG("[temp] sample=%i => T=%i\r\n", sample, tempC);
 
