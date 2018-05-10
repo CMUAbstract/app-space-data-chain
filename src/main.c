@@ -11,6 +11,7 @@
 #include <libmsp/watchdog.h>
 #include <libmsp/clock.h>
 #include <libmsp/gpio.h>
+#include <libmsp/periph.h>
 #include <libharvest/charge.h>
 #include <libmspuartlink/uartlink.h>
 
