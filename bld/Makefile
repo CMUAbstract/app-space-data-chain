@@ -25,6 +25,7 @@ CONFIG_EDB = 1
 MAIN_CLOCK_FREQ = 1000000
 
 export CLOCK_FREQ_ACLK = 32768
+export CLOCK_FREQ_MCLK = $(MAIN_CLOCK_FREQ)
 export CLOCK_FREQ_SMCLK = $(MAIN_CLOCK_FREQ)
 
 export LIBMSP_CLOCK_SOURCE = DCO
@@ -62,6 +63,9 @@ export LIBEDB_ENABLE_UART = 0
 # This would involve switches for individual workarounds, instead
 # of conditioning the workarounds based on board setting.
 ifeq ($(BOARD),sprite-app-v1.2)
+export LIBEDB_BOARD_VERSION_MAJOR = 1
+export LIBEDB_BOARD_VERSION_MINOR = 2
+else ifeq ($(BOARD),msp-exp430fr5994) # dummy clause: board version meaningless for LP
 export LIBEDB_BOARD_VERSION_MAJOR = 1
 export LIBEDB_BOARD_VERSION_MINOR = 2
 else

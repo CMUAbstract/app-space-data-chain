@@ -49,6 +49,13 @@
 #define     PORT_DBG_1             1
 #define     PIN_DBG_1              5
 
+#elif defined(BOARD_MSP_EXP430FR5994)
+
+#define     PORT_DBG_0             4
+#define     PIN_DBG_0              0
+
+#define     PORT_DBG_1             1
+#define     PIN_DBG_1              5
 
 #endif // BOARD_*
 

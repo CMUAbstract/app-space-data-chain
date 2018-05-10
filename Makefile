@@ -1,4 +1,5 @@
-export BOARD ?= sprite-app-v1.2
+export BOARD ?= msp-exp430fr5994
+
 export VOLTAGE = 2400
 
 TOOLCHAINS = \
